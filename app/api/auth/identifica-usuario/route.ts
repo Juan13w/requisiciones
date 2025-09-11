@@ -1,0 +1,159 @@
+import { NextRequest, NextResponse } from "next/server";
+import { sql } from '@/lib/database';
+import type { Empleado, Administrador } from '@/lib/database';
+
+export async function POST(request: NextRequest) {
+  // Configuración de la respuesta
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  try {
+    console.log("Solicitud recibida en /api/auth/identifica-usuario");
+    
+    // Verificar el método de la solicitud
+    if (request.method !== 'POST') {
+      return new NextResponse(
+        JSON.stringify({ 
+          tipo: "error",
+          error: 'Método no permitido',
+          mensaje: 'Solo se permite el método POST'
+        }),
+        { status: 405, headers: { ...headers, 'Allow': 'POST' } }
+      );
+    }
+
+    // Verificar el tipo de contenido
+    const contentType = request.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      return new NextResponse(
+        JSON.stringify({ 
+          tipo: "error",
+          error: 'Formato no soportado',
+          mensaje: 'Content-Type debe ser application/json'
+        }),
+        { status: 400, headers }
+      );
+    }
+
+    // Parsear el cuerpo de la solicitud
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error('Error al analizar el cuerpo de la solicitud:', parseError);
+      return new NextResponse(
+        JSON.stringify({ 
+          tipo: "error",
+          error: 'Solicitud inválida',
+          mensaje: 'El cuerpo de la solicitud no es un JSON válido'
+        }),
+        { status: 400, headers }
+      );
+    }
+
+    const { email } = body;
+    
+    // Validar email
+    if (!email || typeof email !== 'string') {
+      return new NextResponse(
+        JSON.stringify({ 
+          tipo: "error",
+          error: 'Datos inválidos',
+          mensaje: 'Se requiere un correo electrónico válido'
+        }),
+        { status: 400, headers }
+      );
+    }
+    
+    console.log(`Buscando usuario con correo: ${email}`);
+    
+    // Buscar en empleados
+    try {
+      const empleados = await sql`
+        SELECT empleado_id, Correo_emp 
+        FROM empleado 
+        WHERE Correo_emp = ${email}
+        LIMIT 1
+      ` as Empleado[];
+      
+      if (empleados?.length > 0) {
+        console.log('Empleado encontrado');
+        return new NextResponse(
+          JSON.stringify({ 
+            tipo: "empleado",
+            mensaje: "Empleado identificado" 
+          }),
+          { status: 200, headers }
+        );
+      }
+    } catch (empleadoError) {
+      console.error('Error al buscar en la tabla empleado:', empleadoError);
+      // Continuamos para buscar en administradores
+    }
+
+    // Buscar en administradores
+    try {
+      const administradores = await sql`
+        SELECT admin_id, Correo 
+        FROM administrador 
+        WHERE Correo = ${email}
+        LIMIT 1
+      ` as Administrador[];
+      
+      if (administradores?.length > 0) {
+        console.log('Administrador encontrado');
+        return new NextResponse(
+          JSON.stringify({ 
+            tipo: "administrador",
+            mensaje: "Administrador identificado"
+          }),
+          { status: 200, headers }
+        );
+      }
+    } catch (adminError) {
+      console.error('Error al buscar en la tabla administrador:', adminError);
+      // Continuamos para devolver que no se encontró el usuario
+    }
+
+    console.log('No se encontró el usuario');
+    return new NextResponse(
+      JSON.stringify({ 
+        tipo: "ninguno",
+        mensaje: "No se encontró un usuario con ese correo electrónico" 
+      }),
+      { status: 200, headers }
+    );
+    
+  } catch (error: any) {
+    console.error('Error en el endpoint /api/auth/identifica-usuario:', error);
+    
+    // Crear respuesta de error estándar
+    const errorResponse = {
+      tipo: "error",
+      error: 'Error interno del servidor',
+      mensaje: 'Ocurrió un error al procesar la solicitud',
+      ...(process.env.NODE_ENV === 'development' && {
+        detalles: error.message || 'Error desconocido',
+        stack: error.stack
+      })
+    };
+    
+    // Detectar si es un error de base de datos
+    if (error.code === 'ER_NO_SUCH_TABLE') {
+      errorResponse.error = 'Error de configuración de la base de datos';
+      errorResponse.mensaje = 'Las tablas necesarias no existen o no son accesibles';
+      
+      return new NextResponse(
+        JSON.stringify(errorResponse),
+        { status: 500, headers }
+      );
+    }
+    
+    // Para otros errores
+    return new NextResponse(
+      JSON.stringify(errorResponse),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+}
