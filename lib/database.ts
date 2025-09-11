@@ -1,10 +1,10 @@
 import mysql from 'mysql2/promise'
 
 // Validar variables de entorno necesarias
-const requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_NAME'];
+const requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_NAME']
 for (const envVar of requiredEnvVars) {
   if (!process.env[envVar]) {
-    throw new Error(`${envVar} environment variable is required`);
+    throw new Error(`${envVar} environment variable is required`)
   }
 }
 
@@ -20,53 +20,32 @@ const pool = mysql.createPool({
   queueLimit: 0
 })
 
-// Función helper para ejecutar queries con sintaxis similar a Neon
+// Función helper para ejecutar queries
 export async function sql(strings: TemplateStringsArray, ...values: any[]) {
   let query = strings[0]
   for (let i = 0; i < values.length; i++) {
     query += '?' + strings[i + 1]
   }
-  
   const [rows] = await pool.execute(query, values)
-  return rows as any[]
+  return rows
 }
 
 export { pool }
 
-// Tipos TypeScript para la base de datos empresa_db - Estructura exacta original
-export interface Turno {
-  Id_turno_PK: number
-  Hora_Entrada: string
-  Hora_Salida_break: string
-  Hora_Entrada_break: string
-  Hora_Salida_almuerzo: string
-  Hora_Entrada_almuerzo: string
-  Hora_Salida: string
+// Tipos TypeScript para la base de datos requisiciones_db
+export interface Coordinador {
+  coordinador_id: number
+  correo: string
 }
 
-export interface Sede {
-  Id_sede_PK: number
-  Nombre: string
-  Direccion_IP: string
-  Turno_id: number
-}
-
-export interface Empleado {
-  empleado_id: number
-  Correo_emp: string
-  Turno_id: number
-}
-
-export interface RegistroHorario {
-  Id_registro_PK: number
-  Empleado_id: number
-  Tipo: string
-  Hora: string
-  Fecha: string
-}
-
-export interface Administrador {
-  admin_id: number
-  Correo: string
-  Clave: string
+export interface Requisicion {
+  requisicion_id: number
+  consecutivo: number
+  empresa: string
+  fecha_solicitud: Date
+  nombre_solicitante: string
+  proceso: string
+  justificacion: string
+  descripcion: string
+  cantidad: number
 }

@@ -1,18 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from 'next/navigation'
 import LoginForm from "./LoginForm"
 import "./Navbar.css"
 
 interface UserInfo {
   id: number
   email: string
-  turno?: {
-    id: number
-    hora_entrada?: string
-    hora_salida?: string
-  } | null
-  isAdmin: boolean
+  isAdmin?: boolean
 }
 
 const Navbar = () => {
@@ -20,6 +16,23 @@ const Navbar = () => {
   const [showLoginForm, setShowLoginForm] = useState(false)
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [scrolled, setScrolled] = useState(false)
+  const router = useRouter()
+
+  // Verificar si el usuario ya está autenticado al cargar
+  useEffect(() => {
+    const usuarioLogueado = localStorage.getItem("usuarioLogueado") === "true"
+    const usuarioData = localStorage.getItem("usuarioData")
+    
+    if (usuarioLogueado && usuarioData) {
+      try {
+        const user = JSON.parse(usuarioData)
+        setUserInfo(user)
+        setIsLoggedIn(true)
+      } catch (error) {
+        console.error("Error al analizar los datos del usuario:", error)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -40,20 +53,30 @@ const Navbar = () => {
   }
 
   const handleLogin = (userData: UserInfo) => {
+    // Guardar datos en el estado local
     setUserInfo(userData)
     setIsLoggedIn(true)
     setShowLoginForm(false)
-    if (userData.isAdmin) {
-      console.log(`Usuario ${userData.email} iniciando sesión como Administrador`)
-    } else {
-      console.log(`Usuario ${userData.email} iniciando sesión`)
-    }
+    
+    // Guardar en localStorage
+    localStorage.setItem("usuarioLogueado", "true")
+    localStorage.setItem("usuarioData", JSON.stringify(userData))
+    
+    // Redirigir al panel de administración
+    router.push('/admin')
   }
 
   const handleLogout = () => {
+    // Limpiar estado
     setIsLoggedIn(false)
     setUserInfo(null)
-    console.log("Usuario cerrando sesión...")
+    
+    // Limpiar localStorage
+    localStorage.removeItem("usuarioLogueado")
+    localStorage.removeItem("usuarioData")
+    
+    // Redirigir a la página principal
+    router.push('/')
   }
 
   const handleCloseForm = () => {
@@ -68,10 +91,7 @@ const Navbar = () => {
             <h2>TurnoSync</h2>
           </div>
           <div className="navbar-logos">
-            <img src="/images/logo1.png" alt="Logo 1" className="nav-logo" />
-            <img src="/images/logo2.png" alt="Logo 2" className="nav-logo" />
-            <img src="/images/logo3.png" alt="Logo 3" className="nav-logo" />
-            <img src="/images/logo4.png" alt="Logo 4" className="nav-logo" />
+            {/* Logos have been moved to the footer */}
           </div>
           <div className="navbar-menu">
             {!isLoggedIn ? (

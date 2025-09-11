@@ -1,5 +1,5 @@
 .navbar {
-  background-color: rgba(0, 0, 0, 0.3);
+  background-color: rgba(15, 23, 42, 0.8);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
@@ -10,48 +10,85 @@
   z-index: 1000;
   width: 100%;
   transition: all 0.3s ease;
+  height: 70px;
+  display: flex;
+  align-items: center;
 }
 
 /* Efecto de transparencia al hacer scroll */
 .navbar.scrolled {
-  background-color: rgba(78, 99, 139, 0.95);
+  background-color: rgba(15, 23, 42, 0.98);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .navbar-container {
   max-width: 1200px;
+  width: 100%;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 80px;
-  position: relative;
 }
 
-.navbar-brand {
-  position: absolute;
-  left: 20px;
-  top: 50%;
-  transform: translateY(-50%);
+.navbar-brand h2 {
+  color: #ffffff;
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
 }
 
 .navbar-logos {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 15px;
-  flex: 1;
-  flex-wrap: wrap;
-  padding: 0 20px;
+  display: none;
 }
 
-.nav-logo {
-  height: 50px;  /* Aumentado de 35px a 50px */
-  width: auto;
-  max-width: 120px;  /* Aumentado de 100px a 120px */
-  object-fit: contain;
-  transition: transform 0.3s ease;
+.navbar-menu {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-greeting {
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.navbar-button {
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.375rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  outline: none;
+}
+
+.login-btn {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.login-btn:hover {
+  background-color: #2563eb;
+  transform: translateY(-1px);
+}
+
+.logout-btn {
+  background-color: #ef4444;
+  color: white;
+}
+
+.logout-btn:hover {
+  background-color: #dc2626;
+  transform: translateY(-1px);
 }
 
 .nav-logo:hover {
@@ -59,9 +96,6 @@
 }
 
 .navbar-brand h2 {
-  color: #ecf0f1;
-  margin: 0;
-  font-size: 1.5rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -69,6 +103,8 @@
 .navbar-menu {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex: 1;
   gap: 15px;
 }
 
@@ -83,7 +119,7 @@
 }
 
 .login-btn {
-  background-color: #152c5e;
+  background-color: #0c1527;
   color: white;
 }
 
@@ -102,6 +138,7 @@
   transform: translateY(-1px);
 }
 
+/* Estilos para el menú de usuario */
 .user-menu {
   display: flex;
   align-items: center;
@@ -109,81 +146,58 @@
 }
 
 .user-greeting {
-  color: #ecf0f1;
-  font-size: 14px;
+  color: #e2e8f0;
+  font-size: 0.9rem;
   font-weight: 500;
 }
 
-/* Responsive design */
+/* Estilos responsivos */
 @media (max-width: 992px) {
-  .navbar-logos {
-    gap: 10px;
-    padding: 0 10px;
+  .navbar-container {
+    padding: 0 1.5rem;
   }
   
-  .nav-logo {
-    height: 40px;  /* Aumentado de 30px a 40px */
-    max-width: 100px;  /* Aumentado de 80px a 100px */
+  .user-email {
+    display: none;
   }
 }
 
 @media (max-width: 768px) {
+  .navbar {
+    height: 60px;
+  }
+  
   .navbar-container {
-    padding: 0 15px;
-    height: auto;
-    min-height: 70px;
-    flex-wrap: wrap;
-    padding-top: 10px;
-    padding-bottom: 10px;
+    padding: 0 1rem;
   }
   
-  .navbar-logos {
-    order: 3;
-    flex: 0 0 100%;
-    margin-top: 10px;
-    padding: 5px 0;
-    position: static;
-    transform: none;
-    z-index: 1;
+  .navbar-brand .logo {
+    height: 35px;
   }
   
-  .navbar-brand {
-    position: static;
-    transform: none;
-    margin-right: auto;
+  .login-button,
+  .logout-button {
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
   }
   
-  .nav-logo {
-    height: 35px;  /* Aumentado de 25px a 35px */
-    max-width: 90px;  /* Aumentado de 70px a 90px */
-  }
-  
-  .navbar-brand h2 {
-    font-size: 1.2rem;
-    position: static;
-    transform: none;
-  }
-  
-  .navbar-logos {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    justify-content: center;
-    z-index: -1;
-  }
-
-  .navbar-brand h2 {
-    font-size: 1.3rem;
-  }
-
-  .navbar-button {
-    padding: 8px 16px;
-    font-size: 13px;
-  }
-
-  .user-greeting {
+  .user-email {
     display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar {
+    height: 55px;
+  }
+  
+  .navbar-brand .logo {
+    height: 30px;
+  }
+  
+  .login-button,
+  .logout-button {
+    padding: 0.35rem 0.8rem;
+    font-size: 0.8rem;
   }
 }

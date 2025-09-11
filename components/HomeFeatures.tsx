@@ -1,6 +1,10 @@
 import React from 'react';
 import './HomeFeatures.css';
 
+interface HomeFeaturesProps {
+  onLoginClick?: () => void;
+}
+
 // Puedes reemplazar estos emojis con iconos SVG si lo prefieres
 const features = [
   {
@@ -21,7 +25,7 @@ const features = [
 
 ];
 
-const HomeFeatures = () => {
+const HomeFeatures: React.FC<HomeFeaturesProps> = ({ onLoginClick }) => {
   return (
     <section className="features-section">
       <div className="features-container">
