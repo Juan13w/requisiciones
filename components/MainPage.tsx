@@ -21,9 +21,9 @@ const MainPage: React.FC<MainPageProps> = ({ onLogin }) => {
     const usuarioLogueado = window.localStorage.getItem("usuarioLogueado") === "true";
     setIsLoggedIn(usuarioLogueado);
     
-    // Si ya está autenticado, redirigir al panel de administración
+    // Si ya está autenticado, redirigir al dashboard
     if (usuarioLogueado) {
-      router.push('/admin');
+      router.push('/dashboard');
     }
   }, [router]);
 
@@ -32,8 +32,8 @@ const MainPage: React.FC<MainPageProps> = ({ onLogin }) => {
     if (onLogin) {
       onLogin(userData);
     }
-    // Redirigir al panel de administración después del inicio de sesión exitoso
-    router.push('/admin');
+    // Redirigir al dashboard después del inicio de sesión exitoso
+    router.push('/dashboard');
   };
 
   if (isLoggedIn) {

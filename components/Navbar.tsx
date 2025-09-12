@@ -62,8 +62,8 @@ const Navbar = () => {
     localStorage.setItem("usuarioLogueado", "true")
     localStorage.setItem("usuarioData", JSON.stringify(userData))
     
-    // Redirigir al panel de administración
-    router.push('/admin')
+    // Redirigir al dashboard
+    router.push('/dashboard')
   }
 
   const handleLogout = () => {

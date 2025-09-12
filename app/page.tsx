@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 
 // Importaciones dinámicas para evitar problemas de SSR
 const MainPage = dynamic(() => import('@/components/MainPage'), { ssr: false });
-const PanelAdmin = dynamic(() => import('@/components/PanelAdmin'), { ssr: false });
+const Dashboard = dynamic(() => import('@/components/Dashboard'), { ssr: false });
 const Navbar = dynamic(() => import('@/components/Navbar'), { ssr: false });
 
 interface UserData {
@@ -58,9 +58,9 @@ export default function Home() {
     );
   }
 
-  // Si el usuario está autenticado, mostrar el PanelAdmin
+  // Si el usuario está autenticado, mostrar el Dashboard
   if (user) {
-    return <PanelAdmin user={user} onLogout={handleLogout} />;
+    return <Dashboard />;
   }
 
   // Si no está autenticado, mostrar la página principal con el formulario de login

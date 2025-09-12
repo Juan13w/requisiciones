@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
-// Importación dinámica del componente PanelAdmin para evitar problemas de hidratación
-const PanelAdmin = dynamic(
-  () => import('@/components/PanelAdmin'),
+// Importación dinámica del componente Dashboard para evitar problemas de hidratación
+const Dashboard = dynamic(
+  () => import('@/components/Dashboard'),
   { ssr: false }
 );
 
@@ -47,10 +47,5 @@ export default function AdminDashboard() {
     );
   }
 
-  return (
-    <PanelAdmin 
-      user={{ email: userEmail }} 
-      onLogout={handleLogout} 
-    />
-  );
+  return <Dashboard />;
 }
