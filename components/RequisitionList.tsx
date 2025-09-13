@@ -22,15 +22,9 @@ export default function RequisitionList({ requisitions, onView, onDelete }: Requ
     })
   }
 
-  const getStatusClass = (estado: string) => {
-    switch (estado) {
-      case "aprobada":
-        return "status-approved"
-      case "rechazada":
-        return "status-rejected"
-      default:
-        return "status-pending"
-    }
+  const getStatusClass = () => {
+    // Como eliminamos el estado, siempre devolvemos 'status-pending'
+    return "status-pending"
   }
 
   const filteredRequisitions = requisitions.filter((requisition) => {
@@ -40,8 +34,8 @@ export default function RequisitionList({ requisitions, onView, onDelete }: Requ
       requisition.descripcion.toLowerCase().includes(searchTermLower) ||
       requisition.nombreSolicitante.toLowerCase().includes(searchTermLower)
     )
-    const matchesStatus = statusFilter === "todos" || requisition.estado === statusFilter
-    return matchesSearch && matchesStatus
+    // Como eliminamos el estado, siempre devolvemos true para matchesStatus
+    return matchesSearch
   })
 
   return (
@@ -57,12 +51,6 @@ export default function RequisitionList({ requisitions, onView, onDelete }: Requ
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <select className="status-filter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="todos">Todos los estados</option>
-          <option value="pendiente">Pendiente</option>
-          <option value="aprobada">Aprobada</option>
-          <option value="rechazada">Rechazada</option>
-        </select>
       </div>
 
       <div className="requisition-cards-grid">
@@ -71,8 +59,8 @@ export default function RequisitionList({ requisitions, onView, onDelete }: Requ
             <div key={requisition.id} className="requisition-card">
               <div className="card-header">
                 <span className="consecutivo">{requisition.consecutivo}</span>
-                <span className={`status-badge ${getStatusClass(requisition.estado)}`}>
-                  {requisition.estado.charAt(0).toUpperCase() + requisition.estado.slice(1)}
+                <span className={`status-badge ${getStatusClass()}`}>
+                  Pendiente
                 </span>
                 <button className="view-button" onClick={() => onView(requisition.id)}>
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>

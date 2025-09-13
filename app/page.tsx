@@ -7,11 +7,16 @@ import dynamic from 'next/dynamic';
 const MainPage = dynamic(() => import('@/components/MainPage'), { ssr: false });
 const Dashboard = dynamic(() => import('@/components/Dashboard'), { ssr: false });
 const Navbar = dynamic(() => import('@/components/Navbar'), { ssr: false });
+const Footer = dynamic(
+  () => import('@/components/Footer').then((mod) => mod.Footer),
+  { ssr: false }
+);
 
 interface UserData {
   id: number;
   email: string;
-  isAdmin?: boolean;
+  rol: 'coordinador' | 'compras';
+  isAdmin?: boolean; // Mantener por compatibilidad
 }
 
 export default function Home() {
@@ -65,10 +70,13 @@ export default function Home() {
 
   // Si no está autenticado, mostrar la página principal con el formulario de login
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
       <Navbar />
-      <MainPage onLogin={handleLogin} />
-    </>
+      <main className="flex-grow">
+        <MainPage onLogin={handleLogin} />
+      </main>
+      <Footer />
+    </div>
   );
 }
 

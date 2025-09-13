@@ -1,14 +1,15 @@
 import type { Metadata } from 'next'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
+import { Footer } from '@/components/Footer'
 import './globals.css'
 
 //VERSION 1 FINALIZADA
 
 export const metadata: Metadata = {
-  title: 'Gestión de Turnos',
-  description: 'Buscamos mejorar la experiencia de los usuarios con una gestión de turnos eficiente y precisa.',
-  generator: 'Gestión de Turnos',
+  title: 'Sistema de requisiciones',
+  description: 'Diseñado específicamente para empresas que necesitan un control eficiente de sus procesos de requisiciones.',
+  generator: 'Sistema de requisiciones',
 }
 
 export default function RootLayout({
@@ -27,7 +28,11 @@ html {
 }
         `}</style>
       </head>
-      <body>{children}</body>
+      <body className="flex flex-col min-h-screen">
+        <main className="flex-grow">
+          {children}
+        </main>
+      </body>
     </html>
   )
 }

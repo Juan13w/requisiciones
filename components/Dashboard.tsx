@@ -22,23 +22,42 @@ const Dashboard = () => {
   // Cargar requisiciones al iniciar
   useEffect(() => {
     const isAuthenticated = localStorage.getItem("usuarioLogueado") === "true"
-    if (!isAuthenticated) {
+    const userData = localStorage.getItem("usuarioData")
+    
+    if (!isAuthenticated || !userData) {
+      router.push("/")
+      return
+    }
+    
+    // Verificar el rol del usuario y redirigir si es necesario
+    try {
+      const user = JSON.parse(userData)
+      if (user.rol === 'compras') {
+        router.push('/dashboard-compras')
+        return
+      }
+    } catch (error) {
+      console.error('Error al analizar los datos del usuario:', error)
       router.push("/")
       return
     }
 
-    // Cargar requisiciones guardadas
-    const savedRequisitions = localStorage.getItem(STORAGE_KEY)
-    if (savedRequisitions) {
+    // Cargar requisiciones desde la API
+    const loadRequisitions = async () => {
       try {
-        const parsed = JSON.parse(savedRequisitions)
-        if (Array.isArray(parsed)) {
-          setRequisitions(parsed)
+        const response = await fetch('/api/requisiciones');
+        if (!response.ok) {
+          throw new Error('Error al cargar las requisiciones');
         }
+        const data = await response.json();
+        setRequisitions(data);
       } catch (error) {
-        console.error("Error al cargar las requisiciones:", error)
+        console.error("Error al cargar las requisiciones:", error);
+        alert('Error al cargar las requisiciones. Por favor, recarga la página.');
       }
-    }
+    };
+
+    loadRequisitions();
   }, [router])
 
   // Guardar requisiciones cuando cambian
@@ -56,43 +75,35 @@ const Dashboard = () => {
     router.push("/")
   }
 
-  const handleSaveRequisition = (data: Omit<Requisition, "id" | "fechaCreacion" | "estado">) => {
-    if (editingId) {
-      // Editar requisición existente
-      setRequisitions((prev) =>
-        prev.map((req) =>
-          req.id === editingId
-            ? {
-                ...req,
-                ...data,
-                // Mantener el ID y la fecha de creación original
-                id: req.id,
-                fechaCreacion: req.fechaCreacion,
-                estado: req.estado,
-                // Asegurar que los arrays no sean nulos
-                imagenes: data.imagenes || [],
-                // Asegurar que la cantidad sea un número válido
-                cantidad: Number(data.cantidad) || 1,
-              }
-            : req,
-        ),
-      )
-      setEditingId(null)
-    } else {
-      // Crear nueva requisición
-      const newRequisition: Requisition = {
-        ...data,
-        id: uuidv4(),
-        estado: "pendiente",
-        fechaCreacion: Date.now(),
-        // Asegurar que los arrays no sean nulos
-        imagenes: data.imagenes || [],
-        // Asegurar que la cantidad sea un número válido
-        cantidad: Number(data.cantidad) || 1,
+  const handleSaveRequisition = async (data: Omit<Requisition, "id" | "fechaCreacion" | "estado">) => {
+    try {
+      const response = await fetch('/api/requisiciones', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al guardar la requisición');
       }
-      setRequisitions((prev) => [newRequisition, ...prev])
+
+      // Actualizar la lista de requisiciones
+      const [newRequisitions] = await Promise.all([
+        fetch('/api/requisiciones').then(res => res.json()),
+      ]);
+      
+      setRequisitions(newRequisitions);
+      setShowForm(false);
+      setEditingId(null);
+      
+    } catch (error: unknown) {
+      console.error('Error al guardar la requisición:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error al guardar la requisición';
+      alert(errorMessage);
     }
-    setShowForm(false)
   }
 
   const handleView = (id: string) => {

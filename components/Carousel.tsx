@@ -52,8 +52,8 @@ const Carousel = () => {
               priority={index === 0} // Prioriza la carga de la primera imagen
             />
             <div className="carousel-caption">
-              <h2>Gestión de Turnos Inteligente</h2>
-              <p>Tu solución para una planificación eficiente y sin complicaciones.</p>
+              <h2>Sistema Integral de Requisiciones Empresariales </h2>
+              <p>Optimiza el proceso de solicitudes entre coordinadores de área y el departamento de compras.</p>
             </div>
           </div>
         ))}

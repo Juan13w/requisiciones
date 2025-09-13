@@ -40,7 +40,7 @@ export interface Coordinador {
 
 export interface Requisicion {
   requisicion_id: number
-  consecutivo: number
+  consecutivo: string
   empresa: string
   fecha_solicitud: Date
   nombre_solicitante: string

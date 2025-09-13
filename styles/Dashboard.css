@@ -53,7 +53,7 @@
 
 /* Enhanced navigation buttons with modern styling */
 .nav-button {
-  padding: 0.75rem 1.5rem;
+  padding: 0.23rem 1.1rem;
   border-radius: 0.75rem;
   font-weight: 600;
   font-size: 0.875rem;
@@ -80,7 +80,7 @@
   /* Enhanced logout button with gradient and better hover effects */
   background: linear-gradient(135deg, #ffffff, #ffffff) !important;
   color: rgb(0, 0, 0) !important;
-  padding: 0.75rem 1.5rem !important;
+  padding: 0.23rem 1.1rem !important;
   border-radius: 0.75rem !important;
   font-weight: 600 !important;
   font-size: 0.875rem !important;

@@ -18,15 +18,9 @@ export default function RequisitionDetails({ requisition, onClose }: Requisition
     })
   }
 
-  const getStatusClass = (estado: string) => {
-    switch (estado) {
-      case "aprobada":
-        return "status-approved"
-      case "rechazada":
-        return "status-rejected"
-      default:
-        return "status-pending"
-    }
+  const getStatusClass = () => {
+    // Since we removed the estado field, we'll always return 'status-pending'
+    return "status-pending"
   }
 
   return (
@@ -39,8 +33,8 @@ export default function RequisitionDetails({ requisition, onClose }: Requisition
         <div className="modal-body">
           <div className="req-header">
             <span className="req-consecutivo">{requisition.consecutivo}</span>
-            <span className={`req-status ${getStatusClass(requisition.estado)}`}>
-              {requisition.estado.charAt(0).toUpperCase() + requisition.estado.slice(1)}
+            <span className={`status-badge ${getStatusClass()}`}>
+              Pendiente
             </span>
           </div>
 
@@ -78,21 +72,51 @@ export default function RequisitionDetails({ requisition, onClose }: Requisition
             <p>{requisition.justificacion}</p>
           </div>
 
-          {requisition.imagenes && requisition.imagenes.length > 0 && (
+          {requisition.imagenes && requisition.imagenes.length > 0 ? (
             <div className="detail-item-full">
               <label>Imágenes adjuntas:</label>
               <div className="image-thumbnails">
-                {requisition.imagenes.map((img, index) => (
-                  <div key={index} className="image-thumbnail">
-                    <img 
-                      src={img} 
-                      alt={`Imagen ${index + 1}`}
-                      className="thumbnail"
-                      onClick={() => window.open(img, '_blank')}
-                    />
-                  </div>
-                ))}
+                {requisition.imagenes.map((img, index) => {
+                  // Verificar si la imagen es una cadena base64 o una URL
+                  const imageSrc = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
+                  return (
+                    <div key={index} className="image-thumbnail">
+                      <img 
+                        src={imageSrc} 
+                        alt={`Imagen ${index + 1}`}
+                        className="thumbnail"
+                        style={{ maxWidth: '100%', maxHeight: '200px', cursor: 'pointer' }}
+                        onClick={() => {
+                          const newWindow = window.open('', '_blank');
+                          if (newWindow) {
+                            newWindow.document.write(`
+                              <!DOCTYPE html>
+                              <html>
+                                <head>
+                                  <title>Imagen ${index + 1}</title>
+                                  <style>
+                                    body { margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f5f5f5; }
+                                    img { max-width: 90%; max-height: 90vh; object-fit: contain; }
+                                  </style>
+                                </head>
+                                <body>
+                                  <img src="${imageSrc}" alt="Imagen ampliada" />
+                                </body>
+                              </html>
+                            `);
+                            newWindow.document.close();
+                          }
+                        }}
+                      />
+                    </div>
+                  );
+                })}
               </div>
+            </div>
+          ) : (
+            <div className="detail-item-full">
+              <label>Imágenes adjuntas:</label>
+              <p>No hay imágenes adjuntas</p>
             </div>
           )}
         </div>

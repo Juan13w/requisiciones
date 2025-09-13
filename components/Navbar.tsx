@@ -88,7 +88,7 @@ const Navbar = () => {
       <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
         <div className="navbar-container">
           <div className="navbar-brand">
-            <h2>TurnoSync</h2>
+            <h2>Requisiciones</h2>
           </div>
           <div className="navbar-logos">
             {/* Logos have been moved to the footer */}
