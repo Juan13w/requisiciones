@@ -1,65 +1,134 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/database"
+// app/api/auth/login/route.ts
+import { NextResponse } from 'next/server';
+import pool from '@/lib/db';
+import { RowDataPacket } from 'mysql2';
 
-interface Usuario {
+// Definir interfaces para los tipos de usuario
+interface Admin extends RowDataPacket {
   id: number;
-  correo: string;
-  rol: 'coordinador' | 'compras';
+  email: string;
+  rol: 'admin';
+  clave: string;
+  nombre?: string;
 }
 
-export async function POST(request: NextRequest) {
+interface Coordinador extends RowDataPacket {
+  id: number;
+  email: string;
+  rol: 'coordinador';
+  empresa: string;
+  clave: string;
+}
+
+interface Compras extends RowDataPacket {
+  id: number;
+  email: string;
+  rol: 'compras';
+  clave: string;
+}
+
+type Usuario = Admin | Coordinador | Compras;
+
+export async function POST(request: Request) {
   try {
-    const { email } = await request.json()
+    const { email, password } = await request.json();
 
     if (!email) {
-      return NextResponse.json({ error: "Correo electrónico requerido" }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Email es requerido' },
+        { status: 400 }
+      );
     }
 
-    // Buscar primero en coordinadores
-    const coordinadores = await sql`
-      SELECT coordinador_id as id, correo, 'coordinador' as rol 
-      FROM coordinador 
-      WHERE correo = ${email}
-    ` as unknown as Usuario[];
+    // 1. Verificar si es administrador
+    const [admins] = await pool.query<Admin[]>(
+      `SELECT administrador_id as id, correo as email, 'admin' as rol, clave 
+       FROM administrador 
+       WHERE correo = ?`,
+      [email]
+    );
 
-    // Si no es coordinador, buscar en compras
-    let usuario: Usuario | null = null;
+    if (admins.length > 0) {
+      const admin = admins[0];
+      if (admin.clave === password) {
+        const { clave, ...userWithoutPassword } = admin;
+        return NextResponse.json({
+          user: userWithoutPassword
+        });
+      }
+      return NextResponse.json(
+        { error: 'Contraseña incorrecta' },
+        { status: 401 }
+      );
+    }
+
+    // 2. Verificar si es coordinador
+    const [coordinadores] = await pool.query<Coordinador[]>(
+      `SELECT coordinador_id as id, correo as email, 'coordinador' as rol, empresa, clave 
+       FROM coordinador 
+       WHERE correo = ?`,
+      [email]
+    );
+
     if (coordinadores.length > 0) {
-      usuario = coordinadores[0];
-    } else {
-      const compras = await sql`
-        SELECT usuario_id as id, correo, 'compras' as rol 
-        FROM compras 
-        WHERE correo = ${email}
-      ` as unknown as Usuario[];
-      
-      if (compras.length > 0) {
-        usuario = compras[0];
+      const coordinador = coordinadores[0];
+      if (!password) {
+        return NextResponse.json(
+          { requiresPassword: true },
+          { status: 200 }
+        );
       }
+      if (coordinador.clave === password) {
+        const { clave, ...userWithoutPassword } = coordinador;
+        return NextResponse.json({
+          user: userWithoutPassword
+        });
+      }
+      return NextResponse.json(
+        { error: 'Contraseña incorrecta' },
+        { status: 401 }
+      );
     }
 
-    if (!usuario) {
-      return NextResponse.json({ error: "Usuario no encontrado o no autorizado" }, { status: 401 })
+    // 3. Verificar si es de compras
+    const [compras] = await pool.query<Compras[]>(
+      `SELECT usuario_id as id, correo as email, 'compras' as rol, clave 
+       FROM compras 
+       WHERE correo = ?`,
+      [email]
+    );
+
+    if (compras.length > 0) {
+      const compra = compras[0];
+      if (!password) {
+        return NextResponse.json(
+          { requiresPassword: true },
+          { status: 200 }
+        );
+      }
+      if (compra.clave === password) {
+        const { clave, ...userWithoutPassword } = compra;
+        return NextResponse.json({
+          user: userWithoutPassword
+        });
+      }
+      return NextResponse.json(
+        { error: 'Contraseña incorrecta' },
+        { status: 401 }
+      );
     }
 
-    // Login exitoso
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: usuario.id,
-        email: usuario.correo,
-        rol: usuario.rol,
-        isAdmin: usuario.rol === 'compras' // Por si necesitas mantener compatibilidad con isAdmin
-      }
-    })
+    return NextResponse.json(
+      { error: 'Usuario no encontrado' },
+      { status: 404 }
+    );
 
   } catch (error) {
-    console.error('Error en el inicio de sesión:', error);
+    console.error('Error en el login:', error);
     return NextResponse.json(
       { 
-        success: false, 
         error: 'Error interno del servidor',
-        details: error instanceof Error ? error.message : 'Error desconocido'
+        details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
       },
       { status: 500 }
     );

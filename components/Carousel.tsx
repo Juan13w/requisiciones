@@ -32,11 +32,10 @@ const Carousel = () => {
   };
 
   const images = [
-    // Corregí las rutas para que apunten a la carpeta /images/
-    // y añadí la descripción 'alt' que es necesaria.
-    { src: '/images/imagen2.png', alt: 'Descripción de la imagen 2' },
-    { src: '/images/imagen6.png', alt: 'Descripción de la imagen 6' },
-    { src: '/images/imagen8.png', alt: 'Descripción de la imagen 8' },
+    // Rutas corregidas sin el prefijo 'public' ya que Next.js ya apunta a la carpeta public
+    { src: '/images/imagenes/imgcrs1.png', alt: 'Sistema de Requisiciones' },
+    { src: '/images/imagenes/imgcrs2.png', alt: 'Gestión Eficiente' },
+    { src: '/images/imagenes/imgcrs3.png', alt: 'Control Total' },
   ];
 
   return (

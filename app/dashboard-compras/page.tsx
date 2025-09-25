@@ -1,246 +1,1076 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { FileText, Package, CheckCircle, AlertCircle, Clock } from 'lucide-react';
-import type { Requisition } from '@/types/requisition';
-import './dashboard-page.css';
+import {
+  FileText,
+  CheckCircle,
+  AlertTriangle,
+  AlertCircle,
+  Clock,
+  Eye,
+  XCircle,
+  Download,
+  Send,
+  MoreVertical,
+  History,
+  Filter,
+  Loader2,
+  Search,
+  X,
+} from 'lucide-react';
+import RequisitionCharts from '@/components/charts/RequisitionCharts';
+import '@/styles/ComprasDashboard.css';
+import '@/styles/RequisitionDetails.css';
+import '@/styles/charts.css';
+
+type Estado = 'pendiente' | 'aprobada' | 'rechazada' | 'correccion' | 'cerrada';
+
+interface RequisicionDB {
+  id: string;
+  requisicion_id: number;
+  consecutivo: string | null;
+  empresa: string;
+  fechaSolicitud: string;
+  nombreSolicitante: string;
+  proceso: string;
+  justificacion: string | null;
+  descripcion: string;
+  cantidad: number;
+  imagenes: string[];
+  estado: Estado;
+  fechaCreacion: number;
+  intentosRevision: number;
+  comentarioRechazo: string;
+  fechaUltimoRechazo: string;
+  fechaUltimaModificacion: string;
+}
+
+// Tipado de respuestas de la API
+interface ApiResponse<T> {
+  success?: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+  details?: string;
+  fileUrl?: string;
+  filename?: string;
+}
 
 export default function DashboardCompras() {
-  const router = useRouter();
-  const [requisiciones, setRequisiciones] = useState<Requisition[]>([]);
+  const [requisiciones, setRequisiciones] = useState<RequisicionDB[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    total: 0,
-    pendientes: 0,
-    aprobadas: 0,
-    rechazadas: 0
+  const [error, setError] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState<string | null>(null);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isSendingReport, setIsSendingReport] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportSuccess, setReportSuccess] = useState<string | null>(null);
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [emailMessage, setEmailMessage] = useState('');
+  const [sendReportError, setSendReportError] = useState<string | null>(null);
+  const [sendReportSuccess, setSendReportSuccess] = useState<string | null>(null);
+  const [empresas, setEmpresas] = useState<string[]>([]);
+  const [empresasLoading, setEmpresasLoading] = useState(false);
+  const [empresasError, setEmpresasError] = useState<string | null>(null);
+  const [selectedEmpresa, setSelectedEmpresa] = useState<string | null>(null);
+
+  // Historial modal state
+  type HistEntry = {
+    id: number;
+    requisicion_id: number;
+    estado: Estado | string;
+    comentario: string | null;
+    usuario: string | null;
+    creado_en: string;
+  };
+  const [showHistoryModal, setShowHistoryModal] = useState<{ open: boolean; reqId: string | null }>({ open: false, reqId: null });
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<HistEntry[]>([]);
+
+  // Modal de detalle
+  const [showDetailModal, setShowDetailModal] = useState<{ open: boolean; req: RequisicionDB | null }>({ open: false, req: null });
+
+  // Abrir detalle en modal
+  const openDetail = (id: string) => {
+    const req = requisiciones.find((r) => r.id === id || r.requisicion_id.toString() === id) || null;
+    setShowDetailModal({ open: true, req });
+  };
+
+  // Normalizador de datos
+  const formatRequisicion = (req: any): RequisicionDB => ({
+    id: req.id?.toString() || req.requisicion_id?.toString() || '',
+    requisicion_id: req.requisicion_id || 0,
+    consecutivo: req.consecutivo || null,
+    empresa: req.empresa || '',
+    fechaSolicitud: req.fechaSolicitud || req.fecha_solicitud || new Date().toISOString(),
+    nombreSolicitante: req.nombreSolicitante || req.nombre_solicitante || '',
+    proceso: req.proceso || '',
+    justificacion: req.justificacion || null,
+    descripcion: req.descripcion || '',
+    cantidad: req.cantidad || 0,
+    imagenes: req.imagenes || (req.img ? [req.img] : []),
+    estado: (req.estado as Estado) || 'pendiente',
+    fechaCreacion: req.fechaCreacion || Date.now(),
+    intentosRevision: req.intentosRevision || 0,
+    comentarioRechazo: req.comentarioRechazo || '',
+    fechaUltimoRechazo: req.fechaUltimoRechazo || '',
+    fechaUltimaModificacion: req.fechaUltimaModificacion || new Date().toISOString(),
   });
 
+  // Cargar requisiciones
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem("usuarioLogueado") === "true";
-    const userData = localStorage.getItem("usuarioData");
-    
-    if (!isAuthenticated || !userData) {
-      router.push("/");
-      return;
-    }
-
-    // Verificar que el usuario sea de compras
-    try {
-      const user = JSON.parse(userData);
-      if (user.rol !== 'compras') {
-        router.push('/dashboard');
-        return;
-      }
-
-      // Cargar estadísticas (simuladas por ahora)
-      setStats({
-        total: 42,
-        pendientes: 12,
-        aprobadas: 25,
-        rechazadas: 5
-      });
-    } catch (error) {
-      console.error('Error al analizar los datos del usuario:', error);
-      router.push("/");
-      return;
-    }
-
-    // Cargar requisiciones
-    const cargarRequisiciones = async () => {
+    const fetchRequisiciones = async () => {
       try {
+        setLoading(true);
         const response = await fetch('/api/requisiciones');
+
         if (!response.ok) {
           throw new Error('Error al cargar las requisiciones');
         }
-        const data = await response.json();
-        setRequisiciones(data);
-      } catch (error) {
-        console.error('Error al cargar las requisiciones:', error);
+
+        const data: unknown = await response.json();
+        if (!Array.isArray(data)) {
+          throw new Error('Formato de respuesta inválido');
+        }
+
+        setRequisiciones(data.map((req) => formatRequisicion(req)));
+      } catch (err) {
+        console.error('Error al cargar las requisiciones:', err);
+        setError(err instanceof Error ? err.message : 'Error desconocido');
       } finally {
         setLoading(false);
       }
     };
 
-    cargarRequisiciones();
-  }, [router]);
+    fetchRequisiciones();
+  }, []);
 
-  const getStatusBadge = (status: string | undefined) => {
-    // Default to empty string if status is undefined
-    const statusLower = (status || '').toLowerCase();
-    let icon;
-    let className = 'status-badge';
-    
-    if (statusLower === 'pendiente') {
-      icon = <Clock className="status-icon" />;
-      className += ' status-pending';
-    } else if (statusLower === 'aprobada') {
-      icon = <CheckCircle className="status-icon" />;
-      className += ' status-approved';
-    } else if (statusLower === 'rechazada') {
-      icon = <AlertCircle className="status-icon" />;
-      className += ' status-rejected';
-    } else {
-      // Default case for unknown or empty status
-      return <span className={`${className} status-pending`}><Clock className="status-icon" />Pendiente</span>;
+  // Cargar empresas disponibles
+  useEffect(() => {
+    const cargarEmpresas = async () => {
+      setEmpresasLoading(true);
+      setEmpresasError(null);
+      try {
+        const res = await fetch('/api/empresas');
+        if (!res.ok) throw new Error('Error al cargar empresas');
+        const data: { nombre: string }[] = await res.json();
+        const nombres = Array.from(new Set((data || []).map((e) => e.nombre).filter(Boolean)));
+        // Respaldo: si API trae vacío, tomar de requisiciones
+        if (nombres.length === 0 && requisiciones.length > 0) {
+          const fallback = Array.from(new Set(requisiciones.map((r) => r.empresa).filter(Boolean))).sort();
+          setEmpresas(fallback);
+        } else {
+          setEmpresas(nombres.sort());
+        }
+      } catch (e) {
+        // Respaldo a partir de requisiciones cargadas
+        const fallback = Array.from(new Set(requisiciones.map((r) => r.empresa).filter(Boolean))).sort();
+        setEmpresas(fallback);
+        setEmpresasError(e instanceof Error ? e.message : 'Error desconocido al cargar empresas');
+      } finally {
+        setEmpresasLoading(false);
+      }
+    };
+    cargarEmpresas();
+  }, [requisiciones]);
+
+  // Obtener historial de una requisición
+  const openHistory = async (reqId: string) => {
+    setShowHistoryModal({ open: true, reqId });
+    setHistoryLoading(true);
+    setHistoryError(null);
+    setHistoryEntries([]);
+    try {
+      const res = await fetch(`/api/requisiciones/${reqId}/historial`);
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || data.message || 'No se pudo obtener el historial');
+      }
+      setHistoryEntries(Array.isArray(data.data) ? data.data : []);
+    } catch (e) {
+      setHistoryError(e instanceof Error ? e.message : 'Error desconocido');
+    } finally {
+      setHistoryLoading(false);
     }
-    
-    return (
-      <span className={className}>
-        {icon}
-        {status}
+  };
+
+  // Actualizar estado
+  const updateRequisitionStatus = async (
+    id: string,
+    newStatus: Estado,
+    event?: React.MouseEvent
+  ) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    let comentarioRechazo = '';
+
+    if (newStatus === 'rechazada' || newStatus === 'correccion') {
+      const comentario = prompt(
+        `Por favor ingrese el motivo del ${
+          newStatus === 'rechazada' ? 'rechazo' : 'rechazo parcial'
+        }:`
+      );
+      if (comentario === null) return;
+      if (comentario.trim() === '') {
+        alert('Debe ingresar un motivo para el rechazo');
+        return;
+      }
+      comentarioRechazo = comentario;
+    } else if (newStatus === 'cerrada') {
+      const req = requisiciones.find(r => r.id === id || r.requisicion_id.toString() === id);
+      if (!req) return;
+      if (!(req.estado === 'aprobada' || req.estado === 'rechazada')) {
+        alert('Solo puede cerrar requisiciones que estén Aprobadas o Rechazadas.');
+        return;
+      }
+      if (!confirm('¿Está seguro que desea cerrar esta requisición?')) {
+        return;
+      }
+    } else if (!confirm(`¿Está seguro que desea ${newStatus} esta requisición?`)) {
+      return;
+    }
+
+    setIsUpdating(id);
+
+    try {
+      const body: Partial<RequisicionDB> = { estado: newStatus };
+
+      if (newStatus === 'rechazada' || newStatus === 'correccion') {
+        body.comentarioRechazo = comentarioRechazo;
+        body.fechaUltimoRechazo = new Date().toISOString();
+
+        if (newStatus === 'correccion') {
+          const requisicion = requisiciones.find(
+            (r) => r.id === id || r.requisicion_id.toString() === id
+          );
+          body.intentosRevision = (requisicion?.intentosRevision || 0) + 1;
+        }
+      }
+
+      const response = await fetch(`/api/requisiciones/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        // If there's an error, try to parse the JSON for a message
+        const errorData: ApiResponse<null> = await response.json().catch(() => ({})); // Gracefully handle if error response is not JSON
+        throw new Error(
+          errorData.error ||
+            errorData.message ||
+            `Error al actualizar (${response.status})`
+        );
+      }
+
+      let updatedRequisition: Partial<RequisicionDB> | null = null;
+      // Handle responses with no content (like 204)
+      if (response.status !== 204) {
+        const responseData: ApiResponse<Partial<RequisicionDB>> = await response.json();
+        updatedRequisition = responseData.data || null;
+      }
+
+      setRequisiciones((prev) =>
+        prev.map((req) => {
+          if (req.id === id || req.requisicion_id.toString() === id) {
+            // If we got data from the server, use it. Otherwise, use local data.
+            return {
+              ...req,
+              ...(updatedRequisition || {}),
+              estado: updatedRequisition?.estado || newStatus,
+              comentarioRechazo:
+                newStatus === 'rechazada' || newStatus === 'correccion'
+                  ? (updatedRequisition?.comentarioRechazo || comentarioRechazo)
+                  : req.comentarioRechazo,
+              fechaUltimoRechazo:
+                newStatus === 'rechazada' || newStatus === 'correccion'
+                  ? (updatedRequisition?.fechaUltimoRechazo || new Date().toISOString())
+                  : req.fechaUltimoRechazo,
+              intentosRevision:
+                updatedRequisition?.intentosRevision ||
+                (newStatus === 'correccion'
+                  ? (req.intentosRevision || 0) + 1
+                  : req.intentosRevision),
+            };
+          }
+          return req;
+        })
+      );
+    } catch (error) {
+      console.error('Error al actualizar:', error);
+
+      try {
+        const refreshResponse = await fetch('/api/requisiciones');
+        if (refreshResponse.ok) {
+          const refreshedData: any[] = await refreshResponse.json();
+          setRequisiciones(refreshedData.map((req) => formatRequisicion(req)));
+        }
+      } catch (refreshError) {
+        console.error('Error al refrescar:', refreshError);
+      }
+
+      alert(
+        `Error al actualizar: ${
+          error instanceof Error ? error.message : 'Error desconocido'
+        }`
+      );
+    } finally {
+      setIsUpdating(null);
+    }
+  };
+
+  // Generar reporte
+  const handleGenerateReport = async () => {
+    try {
+      setIsGeneratingReport(true);
+      setReportError(null);
+      setReportSuccess(null);
+
+      const response = await fetch('/api/reportes/requisiciones');
+      const data: ApiResponse<null> = await response.json();
+
+      if (!response.ok || !data.success || !data.fileUrl) {
+        throw new Error(data.error || data.message || 'Error al generar el reporte');
+      }
+
+      const link = document.createElement('a');
+      link.href = data.fileUrl;
+      link.download = data.filename || 'reporte-requisiciones.pdf';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setReportSuccess('Reporte PDF generado correctamente');
+      setTimeout(() => setReportSuccess(null), 5000);
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : 'Error desconocido');
+      setTimeout(() => setReportError(null), 10000);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
+  // Enviar reporte
+  const handleSendReport = async () => {
+    if (!recipientEmail) {
+      setSendReportError('Por favor ingrese un correo electrónico');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
+      setSendReportError('Por favor ingrese un correo electrónico válido');
+      return;
+    }
+
+    try {
+      setIsSendingReport(true);
+      setSendReportError(null);
+      setSendReportSuccess(null);
+
+      const response = await fetch('/api/reportes/enviar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: recipientEmail,
+          subject: 'Reporte de Requisiciones',
+          message:
+            emailMessage ||
+            'Adjunto encontrará el reporte de requisiciones solicitado.',
+        }),
+      });
+
+      const data: ApiResponse<null> = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Error al enviar el correo');
+      }
+
+      setSendReportSuccess('El reporte ha sido enviado exitosamente');
+      setRecipientEmail('');
+      setEmailMessage('');
+
+      setTimeout(() => {
+        setShowSendModal(false);
+        setSendReportSuccess(null);
+      }, 2000);
+    } catch (err) {
+      setSendReportError(
+        err instanceof Error ? err.message : 'Error desconocido al enviar'
+      );
+    } finally {
+      setIsSendingReport(false);
+    }
+  };
+
+  // Renderizar estado con íconos
+  const renderStatus = (status: Estado, requisicion: RequisicionDB) => {
+    switch (status) {
+      case 'cerrada':
+        return (
+          <span className="status-badge">
+            <FileText className="icon" /> Cerrada
+          </span>
+        );
+      case 'aprobada':
+        return (
+          <span className="status-badge success">
+            <CheckCircle className="icon" /> Aprobada
+          </span>
+        );
+      case 'rechazada':
+        return (
+          <div>
+            <span className="status-badge error">
+              <XCircle className="icon" /> Rechazada
+            </span>
+            {requisicion.comentarioRechazo && (
+              <div className="mt-1 text-xs text-gray-600">
+                <strong>Motivo:</strong> {requisicion.comentarioRechazo}
+              </div>
+            )}
+          </div>
+        );
+      // En la función renderStatus, modifica el caso 'correccion':
+case 'correccion':
+  return (
+    <div>
+      <span className="status-badge warning">
+        <AlertCircle className="icon" /> En corrección
       </span>
-    );
+      {requisicion.comentarioRechazo && (
+        <div className="mt-1 text-xs text-yellow-700">
+          {requisicion.comentarioRechazo}
+        </div>
+      )}
+    </div>
+  );
+      case 'pendiente':
+      default:
+        return (
+          <span className="status-badge warning">
+            <Clock className="icon" /> Pendiente
+          </span>
+        );
+    }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('usuarioLogueado');
-    localStorage.removeItem('usuarioData');
-    router.push('/');
-  };
-
+  // Loading
   if (loading) {
     return (
-      <div className="loading-container">
-        <div className="animate-spin"></div>
+      <div className="dashboard-page">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Cargando requisiciones...</p>
+        </div>
       </div>
     );
   }
 
+  // Error
+  if (error) {
+    return (
+      <div className="dashboard-page">
+        <div className="error-container">
+          <AlertCircle size={48} className="error-icon" />
+          <h2>Error al cargar las requisiciones</h2>
+          <p>{error}</p>
+          <button onClick={() => window.location.reload()} className="retry-button">
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Stats
+  const totalRequisiciones = requisiciones.length;
+  const pendientes = requisiciones.filter((r) => r.estado === 'pendiente').length;
+  const aprobadas = requisiciones.filter((r) => r.estado === 'aprobada').length;
+  const rechazadas = requisiciones.filter((r) => r.estado === 'rechazada').length;
+  const enCorreccion = requisiciones.filter((r) => r.estado === 'correccion').length;
+
+  // Filtro por empresa
+  const filteredRequisiciones = selectedEmpresa
+    ? requisiciones.filter((r) => r.empresa === selectedEmpresa)
+    : requisiciones;
+  const countByEmpresa = requisiciones.reduce<Record<string, number>>((acc, r) => {
+    if (r.empresa) acc[r.empresa] = (acc[r.empresa] || 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <div className="dashboard-page">
+      {/* HEADER */}
       <div className="dashboard-header">
-        <h1>Panel de Control</h1>
+        <div>
+          <h1>Panel de Compras</h1>
+          <p className="subtitle">
+            Gestiona todas las requisiciones de los coordinadores de la empresa
+          </p>
+        </div>
         <div className="header-actions">
-          <button className="generate-report-btn">
+          <button
+            className="action-btn generate-report-btn"
+            onClick={handleGenerateReport}
+            disabled={isGeneratingReport}
+          >
             <FileText className="btn-icon" />
-            Generar Reporte
+            {isGeneratingReport ? 'Generando...' : 'Generar Reporte'}
           </button>
-          <button className="logout-btn" onClick={handleLogout}>
-            Cerrar Sesión
+          <button
+            className="action-btn send-report-btn"
+            onClick={() => setShowSendModal(true)}
+            disabled={isSendingReport}
+          >
+            <Send className="btn-icon" /> Enviar Reporte
           </button>
         </div>
       </div>
 
-      {/* Estadísticas */}
+      {/* STATS */}
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-card-header">
-            <span className="stat-card-title">Total Requisiciones</span>
+            <span className="stat-card-title">TOTAL REQUISICIONES</span>
             <FileText className="stat-icon" />
           </div>
-          <div className="stat-card-content">
-            <div className="stat-value">{stats.total}</div>
-            <p className="stat-description">+20.1% del mes pasado</p>
-          </div>
+          <div className="stat-value">{totalRequisiciones}</div>
+          <p className="stat-description">
+            {totalRequisiciones > 0
+              ? `${Math.round((aprobadas / totalRequisiciones) * 100)}% de efectividad`
+              : 'No hay datos disponibles'}
+          </p>
         </div>
-        
+
         <div className="stat-card">
           <div className="stat-card-header">
-            <span className="stat-card-title">Pendientes</span>
+            <span className="stat-card-title">PENDIENTES</span>
             <Clock className="stat-icon" />
           </div>
-          <div className="stat-card-content">
-            <div className="stat-value">{stats.pendientes}</div>
-            <p className="stat-description">+5 desde ayer</p>
-          </div>
+          <div className="stat-value orange">{pendientes}</div>
+          <p className="stat-description">
+            {enCorreccion > 0 ? `${enCorreccion} en corrección` : 'Sin pendientes urgentes'}
+          </p>
         </div>
-        
+
         <div className="stat-card">
           <div className="stat-card-header">
-            <span className="stat-card-title">Aprobadas</span>
+            <span className="stat-card-title">APROBADAS</span>
             <CheckCircle className="stat-icon" />
           </div>
-          <div className="stat-card-content">
-            <div className="stat-value">{stats.aprobadas}</div>
-            <p className="stat-description">+12% del mes pasado</p>
-          </div>
+          <div className="stat-value green">{aprobadas}</div>
+          <p className="stat-description">{`Total histórico: ${aprobadas}`}</p>
         </div>
-        
+
         <div className="stat-card">
           <div className="stat-card-header">
-            <span className="stat-card-title">Rechazadas</span>
+            <span className="stat-card-title">RECHAZADAS</span>
             <AlertCircle className="stat-icon" />
           </div>
-          <div className="stat-card-content">
-            <div className="stat-value">{stats.rechazadas}</div>
-            <p className="stat-description">-2 desde ayer</p>
-          </div>
+          <div className="stat-value red">{rechazadas}</div>
+          <p className="stat-description">{`Total histórico: ${rechazadas}`}</p>
         </div>
       </div>
 
-      {/* Tabla de requisiciones recientes */}
-      <div className="recent-requisitions">
+      {/* CHARTS */}
+      <RequisitionCharts />
+
+      {/* EMPRESAS - TARJETAS DE FILTRO */}
+      <div className="mt-10">
         <div className="section-header">
-          <h2>Requisiciones Recientes</h2>
-          <p className="section-description">Las últimas 10 requisiciones registradas en el sistema.</p>
+          <h2>Empresas</h2>
+          <p className="section-description">Selecciona una empresa para ver sus requisiciones</p>
         </div>
-        
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Empresa</th>
-                <th>Solicitante</th>
-                <th>Fecha</th>
-                <th>Proceso</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requisiciones.length > 0 ? (
-                requisiciones.slice(0, 10).map((req) => (
-                  <tr key={req.id}>
-                    <td>#{req.consecutivo}</td>
-                    <td>{req.empresa}</td>
-                    <td>{req.nombreSolicitante}</td>
-                    <td>{new Date(req.fechaSolicitud).toLocaleDateString()}</td>
-                    <td>{req.proceso}</td>
-                    <td>{getStatusBadge(req.estado)}</td>
-                    <td>
-                      <button 
-                        className="action-btn" 
-                        onClick={() => router.push(`/dashboard-compras/requisiciones/${req.id}`)}
-                      >
-                        Ver Detalles
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} className="no-records">
-                    <div className="no-records-content">
-                      <Package className="no-records-icon" />
-                      <p>No hay requisiciones registradas</p>
-                      <button 
-                        className="create-btn"
-                        onClick={() => router.push('/dashboard-compras/requisiciones/nueva')}
-                      >
-                        Crear Requisición
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        
-        {requisiciones.length > 0 && (
-          <div className="table-footer">
-            <button 
-              className="view-all-btn"
-              onClick={() => router.push('/dashboard-compras/requisiciones')}
-            >
-              Ver todas las requisiciones
-            </button>
+        {empresasError && (
+          <div className="alert error mt-3">
+            <AlertCircle className="icon" /> {empresasError}
           </div>
         )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
+          {/* Tarjeta: Todas */}
+          <button
+            onClick={() => setSelectedEmpresa(null)}
+            className={`text-left p-4 rounded-lg border transition hover:shadow-sm ${
+              selectedEmpresa === null ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-gray-200'
+            }`}
+            disabled={empresasLoading}
+          >
+            <div className="text-sm text-gray-500">Todas las empresas</div>
+            <div className="text-2xl font-semibold mt-1">{totalRequisiciones}</div>
+          </button>
+
+          {/* Tarjetas por empresa */}
+          {empresasLoading && (
+            <div className="col-span-full text-sm text-gray-500">Cargando empresas...</div>
+          )}
+          {!empresasLoading && empresas
+            .filter(empresa => empresa.toLowerCase() !== 'multiple')
+            .map((e) => (
+              <button
+                key={e}
+                onClick={() => setSelectedEmpresa(e === selectedEmpresa ? null : e)}
+                className={`text-left p-4 rounded-lg border transition hover:shadow-sm ${
+                  selectedEmpresa === e ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-gray-200'
+                }`}
+                title={`Ver requisiciones de ${e}`}
+              >
+                <div className="text-sm text-gray-500">{e}</div>
+                <div className="text-2xl font-semibold mt-1">{countByEmpresa[e] || 0}</div>
+              </button>
+            ))}
+        </div>
       </div>
+
+      {/* LISTA DE REQUISICIONES */}
+      <div className="recent-requisitions">
+        <div className="section-header">
+          <h2>{selectedEmpresa ? `Requisiciones - ${selectedEmpresa}` : 'Requisiciones Recientes'}</h2>
+          <p className="section-description">
+            {selectedEmpresa ? 'Filtradas por empresa seleccionada' : 'Últimas solicitudes enviadas por los coordinadores'}
+          </p>
+        </div>
+        
+        <div className="requisition-grid">
+          {filteredRequisiciones.map((req) => (
+            <div key={req.id} className="requisition-card">
+              <div className="requisition-card-header">
+                <div className="requisition-card-title">
+                  <div className="requisition-id">{req.consecutivo || req.id}</div>
+                  <h3>{req.nombreSolicitante}</h3>
+                </div>
+                <div className={`status-badge ${req.estado}`}>
+                  {req.estado.charAt(0).toUpperCase() + req.estado.slice(1)}
+                </div>
+              </div>
+              
+              <div className="requisition-card-details">
+              {req.estado === 'correccion' && req.comentarioRechazo && (
+              <div className="correction-comment">
+                <strong>Comentario de corrección:</strong>
+                <p>{req.comentarioRechazo}</p>
+              </div>
+               )}
+
+                <div className="detail-row">
+                  <span className="detail-label">Empresa:</span>
+                  <span className="detail-value">{req.empresa}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Proceso:</span>
+                  <span className="detail-value">{req.proceso}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Cantidad:</span>
+                  <span className="detail-value">{req.cantidad}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Fecha:</span>
+                  <span className="detail-value">
+                    {new Date(req.fechaCreacion || Date.now()).toLocaleDateString('es-ES')}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="requisition-card-footer">
+                <div className="requisition-actions">
+                  <button
+                    className="action-btn view-btn"
+                    onClick={() => {
+                      setShowDetailModal({ open: true, req });
+                    }}
+                    title="Ver detalles"
+                  >
+                    <Eye className="action-icon" size={16} />
+                    <span className="action-text"></span>
+                  </button>
+                  
+                  {(req.estado === 'aprobada' || req.estado === 'rechazada') && (
+                    <button
+                      onClick={(e) => updateRequisitionStatus(req.id, 'cerrada', e)}
+                      className="action-btn close-btn"
+                      disabled={!!isUpdating && isUpdating === req.id}
+                      title="Cerrar requisición"
+                    >
+                      <X className="action-icon" size={16} />
+                      <span className="action-text"></span>
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={(e) => updateRequisitionStatus(req.id, 'aprobada', e)}
+                    className="action-btn approve-btn"
+                    disabled={!!isUpdating && isUpdating === req.id}
+                    title="Aprobar"
+                  >
+                    <CheckCircle className="action-icon" size={16} />
+                    <span className="action-text"></span>
+                  </button>
+                  
+                  <button
+                    onClick={(e) => updateRequisitionStatus(req.id, 'rechazada', e)}
+                    className="action-btn reject-btn"
+                    disabled={!!isUpdating && isUpdating === req.id}
+                    title="Rechazar"
+                  >
+                    <X className="action-icon" size={16} />
+                    <span className="action-text"></span>
+                  </button>
+                  
+                  <button
+                    onClick={(e) => updateRequisitionStatus(req.id, 'correccion', e)}
+                    className="action-btn warning-btn"
+                    disabled={!!isUpdating && isUpdating === req.id}
+                    title="Solicitar corrección"
+                  >
+                    <AlertCircle className="action-icon" size={16} />
+                    <span className="action-text"></span>
+                  </button>
+                  
+                  <button
+                    onClick={() => openHistory(req.id)}
+                    className="action-btn history-btn"
+                    title="Ver historial"
+                    type="button"
+                  >
+                    <History className="action-icon" size={16} />
+                    <span className="action-text"></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+          {filteredRequisiciones.length === 0 && (
+            <div className="no-requisitions">
+              {selectedEmpresa ? 'No hay requisiciones para esta empresa' : 'No hay requisiciones registradas'}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* MODAL PARA ENVIAR REPORTE */}
+      {showSendModal && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <h2 className="modal-title">Enviar Reporte por Correo</h2>
+            <p className="modal-description">
+              Ingrese el correo electrónico y un mensaje opcional para enviar el
+              reporte.
+            </p>
+
+            <div className="modal-form">
+              <label className="form-label">Correo electrónico:</label>
+              <input
+                type="email"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                className="form-input"
+                placeholder="ejemplo@empresa.com"
+              />
+
+              <label className="form-label">Mensaje (opcional):</label>
+              <textarea
+                value={emailMessage}
+                onChange={(e) => setEmailMessage(e.target.value)}
+                className="form-input"
+                rows={3}
+                placeholder="Escriba un mensaje personalizado..."
+              />
+            </div>
+
+            {sendReportError && (
+              <div className="alert error">
+                <AlertCircle className="icon" /> {sendReportError}
+              </div>
+            )}
+            {sendReportSuccess && (
+              <div className="alert success">
+                <CheckCircle className="icon" /> {sendReportSuccess}
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <button
+                className="action-btn cancel"
+                onClick={() => setShowSendModal(false)}
+                disabled={isSendingReport}
+              >
+                Cancelar
+              </button>
+              <button
+                className="action-btn send"
+                onClick={handleSendReport}
+                disabled={isSendingReport}
+              >
+                {isSendingReport ? (
+                  <>
+                    <Download className="btn-icon animate-spin" /> Enviando...
+                  </>
+                ) : (
+                  <>
+                    <Send className="btn-icon" /> Enviar Reporte
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL HISTORIAL */}
+      {showHistoryModal.open && (
+        <div className="modal-overlay" onClick={() => setShowHistoryModal({ open: false, reqId: null })}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+            <div className="modal-header">
+              <h3>Historial de Requisición</h3>
+              <button onClick={() => setShowHistoryModal({ open: false, reqId: null })} className="close-button">&times;</button>
+            </div>
+            <div className="modal-body">
+              <p className="text-sm text-gray-600 mb-4">Eventos desde la creación hasta el estado actual</p>
+
+              {historyLoading && (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mb-2"></div>
+                  <p className="text-gray-600">Cargando historial...</p>
+                </div>
+              )}
+
+              {historyError && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <AlertCircle className="h-5 w-5 text-red-500" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-red-700">{historyError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!historyLoading && !historyError && (
+                <div className="space-y-6">
+                  {historyEntries.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">No hay eventos registrados para esta requisición.</p>
+                    </div>
+                  ) : (
+                    <div className="border-l-2 border-gray-200 pl-4 space-y-6">
+                      {historyEntries.map((h, index) => (
+                        <div key={`${h.id}-${h.creado_en}`} className="relative pb-6">
+                          {index !== historyEntries.length - 1 && (
+                            <div className="absolute left-[-9px] top-4 h-full w-0.5 bg-gray-200"></div>
+                          )}
+                          <div className="flex items-start">
+                            <div className="flex-shrink-0">
+                              <div className={`h-5 w-5 rounded-full flex items-center justify-center ${
+                                h.estado === 'aprobada' ? 'bg-green-100 text-green-600' :
+                                h.estado === 'rechazada' ? 'bg-red-100 text-red-600' :
+                                h.estado === 'correccion' ? 'bg-yellow-100 text-yellow-600' :
+                                'bg-blue-100 text-blue-600'
+                              }`}>
+                                {h.estado === 'aprobada' ? (
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                ) : h.estado === 'rechazada' ? (
+                                  <XCircle className="h-3.5 w-3.5" />
+                                ) : h.estado === 'correccion' ? (
+                                  <AlertCircle className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Clock className="h-3.5 w-3.5" />
+                                )}
+                              </div>
+                            </div>
+                            <div className="ml-4 flex-1">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-medium text-gray-900 capitalize">
+                                  {h.estado}
+                                </h4>
+                                <span className="text-xs text-gray-500">
+                                  {new Date(h.creado_en).toLocaleString()}
+                                </span>
+                              </div>
+                              
+                              {h.comentario && (
+                                <div className="mt-1 text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+                                  <p>{h.comentario}</p>
+                                </div>
+                              )}
+                              
+                              {h.usuario && (
+                                <div className="mt-1 text-xs text-gray-500">
+                                  <span className="font-medium">Usuario:</span> {h.usuario}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button 
+                onClick={() => setShowHistoryModal({ open: false, reqId: null })}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DETALLE DE REQUISICIÓN */}
+      {showDetailModal.open && showDetailModal.req && (
+        <div className="modal-overlay" onClick={() => setShowDetailModal({ open: false, req: null })}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Detalles de Requisición</h3>
+              <button onClick={() => setShowDetailModal({ open: false, req: null })} className="close-button">&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="req-header">
+                <span className="req-consecutivo">{showDetailModal.req.consecutivo || showDetailModal.req.id}</span>
+                <span className={`status-badge status-${showDetailModal.req.estado}`}>
+                  {showDetailModal.req.estado.charAt(0).toUpperCase() + showDetailModal.req.estado.slice(1)}
+                </span>
+              </div>
+
+
+              <div className="req-details-grid">
+                <div className="detail-item">
+                  <label>Holding:</label>
+                  <p>{showDetailModal.req.empresa}</p>
+                </div>
+                <div className="detail-item">
+                  <label>Fecha de Solicitud:</label>
+                  <p>{new Date(showDetailModal.req.fechaSolicitud).toLocaleString()}</p>
+                </div>
+                <div className="detail-item">
+                  <label>Nombre del Solicitante:</label>
+                  <p>{showDetailModal.req.nombreSolicitante}</p>
+                </div>
+                <div className="detail-item">
+                  <label>Proceso Solicitante:</label>
+                  <p>{showDetailModal.req.proceso}</p>
+                </div>
+              </div>
+
+              <div className="detail-item-full">
+                <label>Descripción del Producto:</label>
+                <p>{showDetailModal.req.descripcion}</p>
+              </div>
+
+              <div className="detail-item-full">
+                <label>Cantidad:</label>
+                <p>{showDetailModal.req.cantidad}</p>
+              </div>
+
+              {showDetailModal.req.justificacion && (
+                <div className="detail-item-full">
+                  <label>Justificación:</label>
+                  <p>{showDetailModal.req.justificacion}</p>
+                </div>
+              )}
+
+                          {/* Sección de estado de corrección o rechazo */}
+              {(showDetailModal.req.estado === 'rechazada' || showDetailModal.req.estado === 'correccion') && (
+                <div className={`status-alert ${showDetailModal.req.estado}`}>
+                  <div className="alert-content">
+                    <div className="alert-icon">
+                      {showDetailModal.req.estado === 'correccion' ? (
+                        <AlertTriangle className="icon" />
+                      ) : (
+                        <XCircle className="icon" />
+                      )}
+                    </div>
+                    <div className="alert-details">
+                      <h4>
+                        {showDetailModal.req.estado === 'correccion' 
+                          ? 'Enviado a corrección' 
+                          : 'Requisición Rechazada'}
+                      </h4>
+                      {showDetailModal.req.comentarioRechazo && (
+                        <div className="alert-message">
+                          <p className="label">Motivo:</p>
+                          <p className="message">{showDetailModal.req.comentarioRechazo}</p>
+                        </div>
+                      )}
+                      {showDetailModal.req.fechaUltimoRechazo && (
+                        <p className="alert-timestamp">
+                          {new Date(showDetailModal.req.fechaUltimoRechazo).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+
+              {showDetailModal.req.imagenes && showDetailModal.req.imagenes.length > 0 ? (
+                <div className="detail-item-full">
+                  <label>Imágenes adjuntas:</label>
+                  <div className="image-thumbnails">
+                    {showDetailModal.req.imagenes.map((img, index) => {
+                      const imageSrc = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
+                      return (
+                        <div key={index} className="image-thumbnail">
+                          <img 
+                            src={imageSrc} 
+                            alt={`Imagen ${index + 1}`}
+                            className="thumbnail"
+                            style={{ maxWidth: '100%', maxHeight: '200px', cursor: 'pointer' }}
+                            onClick={() => {
+                              const newWindow = window.open('', '_blank');
+                              if (newWindow) {
+                                newWindow.document.write(`
+                                  <!DOCTYPE html>
+                                  <html>
+                                    <head>
+                                      <title>Imagen ${index + 1}</title>
+                                      <style>
+                                        body { margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f5f5f5; }
+                                        img { max-width: 90%; max-height: 90vh; object-fit: contain; }
+                                      </style>
+                                    </head>
+                                    <body>
+                                      <img src="${imageSrc}" alt="Imagen ampliada" />
+                                    </body>
+                                  </html>
+                                `);
+                                newWindow.document.close();
+                              }
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="detail-item-full">
+                  <label>Imágenes adjuntas:</label>
+                  <p>No hay imágenes adjuntas</p>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <span>Últ. Modificación: {new Date(showDetailModal.req.fechaUltimaModificacion).toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+
+    
   );
 }
+      

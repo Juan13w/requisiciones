@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos personalizados para el panel de administración */
+:root {
+  --admin-bg: #f9fafb;
+  --admin-card: #ffffff;
+  --admin-border: #e5e7eb;
+  --admin-text: #111827;
+  --admin-primary: #3b82f6;
+}
+
+.dark {
+  --admin-bg: #111827;
+  --admin-card: #1f2937;
+  --admin-border: #374151;
+  --admin-text: #f9fafb;
+  --admin-primary: #60a5fa;
+}
+
+/* Estilos base */
+body {
+  @apply bg-[var(--admin-bg)] text-[var(--admin-text)];
+}
+
+/* Barra de desplazamiento personalizada */
+::-webkit-scrollbar {
+  @apply w-2 h-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full hover:bg-gray-400 dark:hover:bg-gray-500;
+}
+
+/* Estilos para tarjetas */
+.card {
+  @apply bg-[var(--admin-card)] border border-[var(--admin-border)] rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200;
+}
+
+/* Estilos para botones */
+.btn-primary {
+  @apply bg-[var(--admin-primary)] text-white px-4 py-2 rounded-md hover:opacity-90 transition-opacity;
+}
+
+/* Estilos para la barra de navegación */
+.nav-item {
+  @apply px-3 py-2 rounded-md text-sm font-medium transition-colors;
+}
+
+.nav-item:hover {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+.nav-item.active {
+  @apply bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200;
+}
+
+/* Estilos para tablas */
+.table-container {
+  @apply overflow-x-auto;
+}
+
+table {
+  @apply min-w-full divide-y divide-gray-200 dark:divide-gray-700;
+}
+
+th {
+  @apply px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider;
+}
+
+td {
+  @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100;
+}
+
+/* Estilos para formularios */
+.input-field {
+  @apply w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100;
+}
+
+/* Estilos para alertas */
+.alert {
+  @apply p-4 rounded-md mb-4;
+}
+
+.alert-success {
+  @apply bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200;
+}
+
+.alert-error {
+  @apply bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200;
+}
+
+/* Estilos para modales */
+.modal-overlay {
+  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+}
+
+.modal-content {
+  @apply bg-[var(--admin-card)] rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto;
+}
+
+/* Estilos para pestañas */
+.tab-container {
+  @apply border-b border-gray-200 dark:border-gray-700;
+}
+
+.tab {
+  @apply px-4 py-2 text-sm font-medium border-b-2 border-transparent;
+}
+
+.tab.active {
+  @apply border-blue-500 text-blue-600 dark:text-blue-400;
+}
+
+/* Estilos para tooltips */
+.tooltip {
+  @apply invisible absolute z-50 px-3 py-2 text-sm text-white bg-gray-900 rounded-md opacity-0 transition-opacity duration-200;
+}
+
+.has-tooltip:hover .tooltip {
+  @apply visible opacity-100;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}
+
+/* Animation for page transitions */
+.page-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 200ms, transform 200ms;
+}
+
+.page-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.page-exit-active {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 200ms, transform 200ms;
+}

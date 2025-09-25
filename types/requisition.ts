@@ -9,6 +9,10 @@ export interface Requisition {
   descripcion: string;
   cantidad: number;
   imagenes: string[]; // URLs de las imágenes en base64
-  estado: 'pendiente' | 'aprobada' | 'rechazada';
+  estado: 'pendiente' | 'aprobada' | 'rechazada' | 'correccion';
   fechaCreacion: number; // timestamp
+  intentosRevision?: number;
+  comentarioRechazo?: string;
+  fechaUltimoRechazo?: string;
+  fechaUltimaModificacion?: string;
 }

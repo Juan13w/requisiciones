@@ -1,41 +1,27 @@
 import React from 'react';
+import Image from 'next/image';
 import './HomeFeatures.css';
+import { cn } from '@/lib/utils'; // Asegúrate de que esta ruta sea correcta
 
 interface HomeFeaturesProps {
   onLoginClick?: () => void;
 }
 
-// Puedes reemplazar estos emojis con iconos SVG si lo prefieres
 const features = [
   {
-    icon: '📝',
+    image: '/images/imagenes/img4.png',
     title: 'Gestión de Requisiciones',
     description: 'Crea y envía solicitudes de compra de manera rápida y sencilla. Incluye todos los detalles necesarios para una aprobación eficiente.',
   },
   {
-    icon: '✅',
+    image: '/images/imagenes/img5.png',
     title: 'Aprobación en Tiempo Real',
     description: 'Los jefes de área pueden revisar y aprobar solicitudes directamente desde la plataforma, con notificaciones instantáneas.',
   },
   {
-    icon: '📦',
+    image: '/images/imagenes/img6.png',
     title: 'Seguimiento de Pedidos',
     description: 'Monitorea el estado de tus requisiciones en tiempo real, desde la solicitud hasta la entrega final.',
-  },
-  {
-    icon: '📊',
-    title: 'Reportes y Análisis',
-    description: 'Genera informes detallados de compras, gastos por área y tiempos de aprobación para una mejor toma de decisiones.',
-  },
-  {
-    icon: '🔒',
-    title: 'Seguridad y Control',
-    description: 'Acceso restringido según perfiles de usuario, con registro completo de todas las acciones realizadas en el sistema.',
-  },
-  {
-    icon: '📱',
-    title: 'Acceso Móvil',
-    description: 'Gestiona y aprueba requisiciones desde cualquier lugar, en cualquier momento, directamente desde tu dispositivo móvil.',
   }
 ];
 
@@ -50,7 +36,13 @@ const HomeFeatures: React.FC<HomeFeaturesProps> = ({ onLoginClick }) => {
         <div className="features-grid">
           {features.map((feature, index) => (
             <div key={index} className="feature-card">
-              <div className="feature-icon">{feature.icon}</div>
+              <div className="feature-image-container">
+                <img 
+                  src={feature.image} 
+                  alt={feature.title}
+                  className="feature-image"
+                />
+              </div>
               <h3>{feature.title}</h3>
               <p>{feature.description}</p>
             </div>

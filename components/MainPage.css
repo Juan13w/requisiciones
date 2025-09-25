@@ -1,11 +1,11 @@
 :root {
-  --primary-color: #1a1a2e;
-  --secondary-color: #ffffff;
+  --primary-color: #000008;
+  --secondary-color: #ad000000;
   --accent-color: #4cc9f0;
   --accent-hover: #3a86ff;
   --text-color: #2b2d42;
-  --light-gray: #f8f9fa;
-  --dark-overlay: rgba(0, 0, 0, 0.7);
+  --light-gray: #f8f9fa94;
+  --dark-overlay: rgba(175, 167, 167, 0.349);
   --border-radius: 12px;
   --box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -22,7 +22,7 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   line-height: 1.7;
   color: var(--text-color);
-  background-color: #f9fafb;
+  background-color: #000000;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -32,7 +32,43 @@ body {
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
-  background-color: #f8fafc;
+  background-color: #000000;
+}
+
+/* Gallery Section */
+.gallery-section {
+  padding: 4rem 0;
+  background-color: #f9fafb;
+  position: relative;
+  overflow: hidden;
+}
+
+.gallery-section h2 {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 3rem;
+  color: #1e293b;
+}
+
+.gallery-section h2::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  border-radius: 2px;
+}
+
+.gallery-item {
+  transition: all 0.3s ease;
+  perspective: 1000px;
+}
+
+.gallery-item:hover {
+  z-index: 10;
 }
 
 /* Hero Section */
@@ -80,7 +116,7 @@ body {
 
 /* Fondo de la siguiente sección igual al del degradado final del hero */
 .features-section, .main-content {
-  background: #ffffff !important;
+  background: #000000 !important;
 }
 
 .hero-content {

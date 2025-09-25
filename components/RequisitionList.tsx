@@ -3,29 +3,92 @@
 import { useState } from "react"
 import type { Requisition } from "@/types/requisition"
 import "../styles/RequisitionList.css"
+import { Eye, Edit, Trash2, Send, Clock, Calendar, Package, FileText, User, Building } from 'lucide-react'
 
-interface RequisitionListProps {
+// Iconos reemplazados por imports de lucide-react
+
+export interface RequisitionListProps extends React.HTMLAttributes<HTMLDivElement> {
   requisitions: Requisition[]
   onView: (id: string) => void
   onDelete: (id: string) => void
+  onEdit?: (id: string) => void
+  // Sobrescribir cualquier propiedad onClick que pueda venir de HTMLAttributes
+  onClick?: never
 }
 
-export default function RequisitionList({ requisitions, onView, onDelete }: RequisitionListProps) {
+export default function RequisitionList({ 
+  requisitions, 
+  onView, 
+  onDelete, 
+  onEdit,
+  ...props 
+}: RequisitionListProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("todos")
-
+  
+  // Función para formatear fechas
   const formatDate = (timestamp: number | Date | string) => {
-    return new Date(timestamp).toLocaleDateString("es-ES", {
-      day: "numeric",
-      month: "numeric",
-      year: "numeric",
-    })
+    const date = new Date(timestamp);
+    const options: Intl.DateTimeFormatOptions = { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    };
+    return date.toLocaleDateString('es-ES', options);
+  };
+  
+  // Función para obtener el color del estado
+  const getStatusColor = (status: string) => {
+    const statusLower = status.toLowerCase();
+    switch(statusLower) {
+      case 'pendiente':
+        return 'status-pendiente';
+      case 'aprobado':
+      case 'aprobada':
+        return 'status-aprobado';
+      case 'rechazado':
+      case 'rechazada':
+        return 'status-rechazado';
+      case 'en proceso':
+        return 'status-en-proceso';
+      case 'completado':
+      case 'completada':
+        return 'status-completado';
+      case 'correccion':
+        return 'status-correccion';
+      default:
+        return 'status-pendiente';
+    }
   }
 
-  const getStatusClass = () => {
-    // Como eliminamos el estado, siempre devolvemos 'status-pending'
-    return "status-pending"
+  
+  const formatTimeAgo = (timestamp: number | Date | string) => {
+    const now = new Date()
+    const date = new Date(timestamp)
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    
+    const intervals = {
+      año: 31536000,
+      mes: 2592000,
+      semana: 604800,
+      día: 86400,
+      hora: 3600,
+      minuto: 60,
+      segundo: 1
+    }
+    
+    for (const [unit, secondsInUnit] of Object.entries(intervals)) {
+      const interval = Math.floor(diffInSeconds / secondsInUnit)
+      if (interval >= 1) {
+        return `hace ${interval} ${interval === 1 ? unit : unit + 's'}`
+      }
+    }
+    
+    return 'justo ahora'
   }
+
 
   const filteredRequisitions = requisitions.filter((requisition) => {
     const searchTermLower = searchTerm.toLowerCase()
@@ -33,49 +96,149 @@ export default function RequisitionList({ requisitions, onView, onDelete }: Requ
       requisition.consecutivo.toLowerCase().includes(searchTermLower) ||
       requisition.descripcion.toLowerCase().includes(searchTermLower) ||
       requisition.nombreSolicitante.toLowerCase().includes(searchTermLower)
-    )
-    // Como eliminamos el estado, siempre devolvemos true para matchesStatus
-    return matchesSearch
+    );
+
+    const matchesStatus = statusFilter === "todos" || requisition.estado === statusFilter;
+
+    return matchesSearch && matchesStatus;
   })
 
   return (
     <div className="requisition-list-container">
-      <h2 className="list-title">Mis Requisiciones</h2>
+      <h2 className="list-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <line x1="10" y1="9" x2="8" y2="9"></line>
+        </svg>
+        Lista de Requisiciones
+      </h2>
+      
       <div className="filters-container">
         <div className="search-bar">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="search-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input
-            type="text"
-            placeholder="Buscar por consecutivo, producto, solicitante..."
+          <div className="search-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </div>
+          <input 
+            type="text" 
+            placeholder="Buscar por número de requisición..." 
+            className="search-input"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        
+        <select 
+          className="status-filter"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="todos">Todos los estados</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="aprobado">Aprobado</option>
+          <option value="rechazado">Rechazado</option>
+          <option value="en proceso">En proceso</option>
+          <option value="completado">Completado</option>
+        </select>
       </div>
-
-      <div className="requisition-cards-grid">
+      
+      <div className="requisition-list">
         {filteredRequisitions.length > 0 ? (
           filteredRequisitions.map((requisition) => (
-            <div key={requisition.id} className="requisition-card">
-              <div className="card-header">
-                <span className="consecutivo">{requisition.consecutivo}</span>
-                <span className={`status-badge ${getStatusClass()}`}>
-                  Pendiente
+            <div key={requisition.id} className="requisition-item">
+              <div className="requisition-header">
+                <h3 className="requisition-title">
+                  <span className="consecutivo">{requisition.consecutivo || 'S/N'}</span>
+                  {requisition.descripcion ? requisition.descripcion.substring(0, 50) + (requisition.descripcion.length > 50 ? '...' : '') : 'Requisición sin descripción'}
+                </h3>
+                <span className={`requisition-status ${getStatusColor(requisition.estado)}`}>
+                  {requisition.estado || 'Pendiente'}
                 </span>
-                <button className="view-button" onClick={() => onView(requisition.id)}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                </button>
               </div>
-              <p className="description">{requisition.descripcion}</p>
-              <div className="details-grid">
-                <span><strong>Holding:</strong> {requisition.empresa}</span>
-                <span><strong>Solicitante:</strong> {requisition.nombreSolicitante}</span>
-                <span><strong>Proceso:</strong> {requisition.proceso}</span>
-                <span><strong>Cantidad:</strong> {requisition.cantidad}</span>
+              
+              {requisition.descripcion && (
+                <p className="description">
+                  {requisition.descripcion}
+                </p>
+              )}
+              
+              <div className="requisition-details">
+                <div className="detail-item">
+                  <User size={14} className="detail-icon" />
+                  <span>{requisition.nombreSolicitante || 'Solicitante no especificado'}</span>
+                </div>
+                
+                {requisition.proceso && (
+                  <div className="detail-item">
+                    <FileText size={14} className="detail-icon" />
+                    <span>{requisition.proceso}</span>
+                  </div>
+                )}
+                
+                {requisition.cantidad && (
+                  <div className="detail-item">
+                    <Package size={14} className="detail-icon" />
+                    <span>{requisition.cantidad} {requisition.cantidad === 1 ? 'unidad' : 'unidades'}</span>
+                  </div>
+                )}
               </div>
-              <div className="card-footer">
-                <span>Fecha Solicitud: {formatDate(requisition.fechaSolicitud)}</span>
-                <span>Creada: {formatDate(requisition.fechaCreacion)}</span>
+              
+              <div className="requisition-footer">
+                <div className="date-info">
+                  <span className="date-item">
+                    <Calendar size={14} className="date-icon" />
+                    {requisition.fechaSolicitud ? formatDate(requisition.fechaSolicitud) : 'Sin fecha'}
+                  </span>
+                  {requisition.fechaCreacion && (
+                    <span className="date-item">
+                      <Clock size={14} className="date-icon" />
+                      {formatTimeAgo(requisition.fechaCreacion)}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="requisition-actions">
+                  {requisition.estado === 'correccion' && onEdit && (
+                    <button 
+                      className="action-btn edit-btn" 
+                      onClick={() => onEdit(requisition.id)}
+                      title="Editar y reenviar"
+                    >
+                      <Edit size={16} className="action-icon" />
+                      <span>Editar</span>
+                    </button>
+                  )}
+                  
+                  <button 
+                    className="action-btn view-btn" 
+                    onClick={() => onView(requisition.id)}
+                    title="Ver detalles"
+                  >
+                    <Eye size={16} className="action-icon" />
+                    <span>Ver detalles</span>
+                  </button>
+                  
+                  {onDelete && (
+                    <button 
+                      className="action-btn delete-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm('¿Estás seguro de que deseas eliminar esta requisición?')) {
+                          onDelete(requisition.id);
+                        }
+                      }}
+                      title="Eliminar"
+                    >
+                      <Trash2 size={16} className="action-icon" />
+                      <span>Eliminar</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))

@@ -147,11 +147,120 @@
 
 /* Contenido principal */
 .main-content {
-  flex: 1;
-  margin-left: 16rem;
-  min-height: 100vh;
+  padding-left: 0; /* Ancho del sidebar */
+  width: 100%;
   display: flex;
   flex-direction: column;
+}
+ 
+/* Navegación estilo coordinador */
+.dashboard-nav {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.nav-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  height: 4.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand-link {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #000000;
+  text-decoration: none;
+  background: linear-gradient(135deg, #000307, #00081f);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  transition: all 0.3s ease;
+}
+
+.brand-link:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+.brand-subtitle {
+  margin-left: 0.75rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav-button {
+  padding: 0.23rem 1.1rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nav-button.primary {
+  background: linear-gradient(135deg, #000000, #15008fad);
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.nav-button.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+}
+
+/* Ajuste del botón de cerrar sesión para que luzca igual */
+.logout-button {
+  background: linear-gradient(135deg, #ffffff, #ffffff);
+  color: #000000;
+  padding: 0.23rem 1.1rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.logout-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
+.user-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  background: #f1f5f9;
+  color: #0f172a;
+  border-radius: 9999px;
+  font-weight: 600;
+}
+
+.user-badge-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 /* Barra superior */

@@ -10,7 +10,6 @@ export const Footer = () => {
   // Función para obtener la ruta correcta de la imagen
   const getImagePath = (number: number) => {
     // Aseguramos que el número tenga el formato correcto (1-15)
-    const paddedNumber = number < 10 ? `0${number}` : `${number}`;
     return `/images/imagenes/Logo${number}.png`;
   };
 

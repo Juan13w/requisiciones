@@ -1,0 +1,594 @@
+/* Contenedor principal de la página del dashboard */
+.dashboard-page {
+  padding: 2rem;
+  background-color: #f9fafb; /* Un gris muy claro */
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif; /* Fuente moderna */
+}
+
+/* Encabezado del Dashboard */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2.5rem;
+}
+
+.dashboard-header h1 {
+  font-size: 2.25rem; /* 36px */
+  font-weight: 800;
+  color: #111827; /* Gris oscuro */
+}
+
+.dashboard-header .subtitle {
+  font-size: 1rem;
+  color: #6b7280; /* Gris medio */
+  margin-top: 0.25rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+/* Botones de acción en el encabezado y tabla */
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.generate-report-btn {
+  background-color: #ffffff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.generate-report-btn:hover {
+  background-color: #f9fafb;
+}
+
+.send-report-btn {
+  background-color: #2563eb; /* Azul primario */
+  color: white;
+}
+
+.send-report-btn:hover {
+  background-color: #1d4ed8;
+}
+
+.btn-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Estilos para las tarjetas de requisiciones */
+.requisition-grid {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 1.5rem;
+  margin: 1.7rem -1.7rem 1.7rem -1.7rem; /* Aumentado el margen izquierdo negativo para mover más a la izquierda */
+  padding: 0 1.5rem 1.9rem 1.5rem; /* Ajustado el padding */
+  -webkit-overflow-scrolling: touch; /* Para un mejor desplazamiento en dispositivos táctiles */
+  scrollbar-width: none; /* Ocultar barra de desplazamiento en Firefox */
+  width: 100%;
+  margin-left: 0; /* Eliminado el margen izquierdo negativo */
+}
+
+/* Ocultar barra de desplazamiento */
+.requisition-grid::-webkit-scrollbar {
+  display: none; /* Ocultar en Webkit (Chrome, Safari) */
+  height: 0; /* Asegurar que no ocupe espacio */
+  width: 0;  /* Asegurar que no ocupe espacio */
+}
+
+.requisition-grid {
+  -ms-overflow-style: none;  /* Ocultar en IE y Edge */
+  scrollbar-width: none;     /* Ocultar en Firefox */
+}
+
+.requisition-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  min-width: 420px; /* Aumentado de 380px a 420px */
+  width: 420px; /* Ancho fijo para consistencia */
+  min-height: 350px; /* Aumentada la altura mínima para mostrar todo el contenido */
+  height: auto; /* Permite que la altura crezca según el contenido */
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto; /* Evita que las tarjetas se estiren o encojan */
+  margin-right: 1rem; /* Espacio adicional entre tarjetas */
+}
+
+.requisition-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1; /* Asegura que la tarjeta hover se muestre por encima de las demás */
+}
+
+.requisition-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.requisition-card-title h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.requisition-id {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.status-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  text-transform: capitalize;
+}
+
+.status-badge.pendiente {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.aprobada {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.rechazada {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.status-badge.correccion {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.cerrada {
+  background-color: #e0f2fe;
+  color: #075985;
+}
+
+.requisition-card-details {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.detail-row {
+  display: flex;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.detail-row:last-child {
+  margin-bottom: 0;
+}
+
+.detail-label {
+  color: #64748b;
+  min-width: 100px;
+  flex-shrink: 0;
+}
+
+.detail-value {
+  color: #334155;
+  font-weight: 500;
+}
+
+.requisition-card-footer {
+  padding: 1rem 1.5rem;
+  background-color: #f8fafc;
+}
+
+.requisition-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  padding: 0.5rem 0;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  line-height: 1.25;
+  height: auto;
+  width: auto;
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.action-btn .action-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.action-text {
+  white-space: nowrap;
+}
+
+.view-btn {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+
+.view-btn:hover {
+  background-color: #bae6fd;
+  color: #075985;
+  border-color: #7dd3fc;
+}
+
+.approve-btn {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.approve-btn:hover {
+  background-color: #d1fae5;
+  color: #064e3b;
+  border-color: #6ee7b7;
+}
+
+.reject-btn {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.reject-btn:hover {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+.warning-btn {
+  background-color: #fffbeb;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.warning-btn:hover {
+  background-color: #fef3c7;
+  color: #78350f;
+  border-color: #fcd34d;
+}
+
+.close-btn {
+  background-color: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+
+.close-btn:hover {
+  background-color: #e2e8f0;
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+
+.history-btn {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+
+.history-btn:hover {
+  background-color: #bae6fd;
+  color: #075985;
+  border-color: #7dd3fc;
+}
+
+.view-options-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 20;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  min-width: 160px;
+  overflow: hidden;
+}
+
+.view-options-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: #334155;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-options-menu button:hover {
+  background-color: #f8fafc;
+  color: #3b82f6;
+}
+
+/* Grid de estadísticas */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+/* Tarjetas de estadísticas */
+.stat-card {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.07), 0 4px 6px -2px rgba(0,0,0,0.05);
+}
+
+.stat-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.stat-card-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.stat-icon {
+  color: #9ca3af;
+}
+
+.stat-value {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+.stat-value.orange { color: #f97316; }
+.stat-value.green { color: #22c55e; }
+.stat-value.red { color: #ef4444; }
+
+.stat-description {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* Sección de requisiciones recientes y tabla */
+.recent-requisitions {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+}
+
+.section-header {
+  margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.section-description {
+  font-size: 1rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+/* Estilos para los botones de acción de la tabla */
+.action-btn.info { background-color: #3b82f6; color: white; }
+.action-btn.success { background-color: #22c55e; color: white; }
+.action-btn.error { background-color: #ef4444; color: white; }
+.action-btn.warning { background-color: #f59e0b; color: white; }
+.action-btn.primary { background-color: #6366f1; color: white; }
+
+/* Insignias de estado */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-weight: 500;
+  font-size: 0.8rem;
+}
+
+.status-badge .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.status-badge.success {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.status-badge.error {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.status-badge.warning {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+/* Contenedores de carga y error */
+.loading-container, .error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-icon {
+  color: #ef4444;
+}
+
+.retry-button {
+  margin-top: 1.5rem;
+  background-color: #2563eb;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+}
+
+/* Estilos para las alertas de estado */
+.status-alert {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 6px;
+  border-left: 4px solid;
+}
+
+.status-alert.correccion {
+  background-color: #fffbeb;
+  border-color: #f59e0b;
+}
+
+.status-alert.rechazada {
+  background-color: #fef2f2;
+  border-color: #ef4444;
+}
+
+.alert-content {
+  display: flex;
+  gap: 1rem;
+}
+
+.alert-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.alert-icon .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.alert-details {
+  flex: 1;
+}
+
+.alert-details h4 {
+  margin: 0 0 0.5rem 0;
+  font-weight: 600;
+}
+
+.alert-message {
+  margin: 0.5rem 0;
+}
+
+.alert-message .label {
+  font-weight: 500;
+  margin: 0 0 0.25rem 0;
+  color: #4b5563;
+}
+
+.alert-message .message {
+  margin: 0;
+  padding: 0.5rem;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+}
+
+.alert-timestamp {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.correction-comment {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background-color: #fff7ed; /* naranja claro */
+  border-left: 4px solid #f97316; /* naranja fuerte */
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: #7c2d12; /* marrón oscuro */
+}
+
+.correction-comment strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+

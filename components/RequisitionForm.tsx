@@ -2,8 +2,9 @@
 
 import type React from "react"
 
-import { useState, useRef, type ChangeEvent, useEffect } from "react"
+import { useState, useRef, type ChangeEvent, useEffect, useCallback } from "react"
 import type { Requisition } from "@/types/requisition"
+import { AutoCompleteInput } from "./ui/AutoCompleteInput"
 
 interface RequisitionFormProps {
   onSave: (requisition: Omit<Requisition, "id" | "fechaCreacion" | "estado">) => void
@@ -26,6 +27,49 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
     },
   )
 
+  // Lista de empresas disponibles
+  const empresasDisponibles = ["soluciones", "emtra", "otra_empresa"]; // Ajusta según tus necesidades
+  
+  // Cargar la empresa del coordinador desde localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      console.log('No estamos en el navegador');
+      return;
+    }
+    
+    console.log('Buscando datos de usuario en localStorage...');
+    const usuarioData = localStorage.getItem('usuarioData');
+    
+    if (usuarioData) {
+      try {
+        const user = JSON.parse(usuarioData);
+        console.log('Datos de usuario encontrados:', user);
+        
+        if (user.empresa) {
+          console.log('Empresa encontrada en datos de usuario');
+          // Solo establecer la empresa si no es 'multiple'
+          if (user.empresa.toLowerCase() !== 'multiple') {
+            console.log('Estableciendo empresa fija:', user.empresa);
+            setFormData(prev => ({
+              ...prev,
+              empresa: user.empresa,
+              nombreSolicitante: user.email || ''
+            }));
+          } else {
+            console.log('Usuario puede seleccionar entre múltiples empresas');
+            // No establecemos la empresa, se mostrará el selector
+          }
+        } else {
+          console.log('No se encontró empresa en los datos del usuario');
+        }
+      } catch (error) {
+        console.error('Error al procesar los datos del usuario:', error);
+      }
+    } else {
+      console.log('No se encontraron datos de usuario en localStorage');
+    }
+  }, []);
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -43,6 +87,7 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
       [name]: name === "cantidad" ? Number.parseInt(value) || 0 : value,
     }))
   }
+
 
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return
@@ -79,11 +124,16 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
       })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    setIsSubmitting(true);
     try {
-      onSave(formData)
+      // Llamar a la función onSave con los datos del formulario
+      onSave(formData);
+    } catch (error) {
+      console.error('Error al guardar la requisición:', error);
+      alert('Error al guardar la requisición. Por favor, inténtalo de nuevo.');
     } finally {
       setIsSubmitting(false)
     }
@@ -133,15 +183,31 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
 
             <div className="form-field">
               <label className="form-label">Empresa</label>
-              <input
-                type="text"
-                name="empresa"
-                value={formData.empresa}
-                onChange={handleChange}
-                className="form-input"
-                required
-                placeholder="Nombre de la empresa"
-              />
+              {formData.empresa && formData.empresa.toLowerCase() !== 'multiple' ? (
+                <input
+                  type="text"
+                  name="empresa"
+                  value={formData.empresa}
+                  readOnly
+                  className="form-input w-full bg-gray-100"
+                  required
+                />
+              ) : (
+                <select
+                  name="empresa"
+                  value={formData.empresa}
+                  onChange={handleChange}
+                  className="form-input w-full"
+                  required
+                >
+                  <option value="">Seleccione una empresa</option>
+                  {empresasDisponibles.map((emp) => (
+                    <option key={emp} value={emp}>
+                      {emp.charAt(0).toUpperCase() + emp.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div className="form-field">
@@ -156,18 +222,12 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
               />
             </div>
 
-            <div className="form-field">
-              <label className="form-label">Solicitante</label>
-              <input
-                type="text"
-                name="nombreSolicitante"
-                value={formData.nombreSolicitante}
-                onChange={handleChange}
-                className="form-input"
-                required
-                placeholder="Nombre completo"
-              />
-            </div>
+            {/* Campo oculto para el nombre del solicitante */}
+            <input
+              type="hidden"
+              name="nombreSolicitante"
+              value={formData.nombreSolicitante}
+            />
 
             <div className="form-field">
               <label className="form-label">Proceso</label>
@@ -178,24 +238,11 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
                 onChange={handleChange}
                 className="form-input"
                 required
-                placeholder="Ej: Compras, Ventas, etc."
+                placeholder="Proceso al que pertenece la requisición"
               />
             </div>
 
             <div className="form-field">
-              <label className="form-label">Cantidad</label>
-              <input
-                type="number"
-                name="cantidad"
-                min="1"
-                value={formData.cantidad}
-                onChange={handleChange}
-                className="form-input"
-                required
-              />
-            </div>
-
-            <div className="form-field full-width">
               <label className="form-label">Justificación</label>
               <textarea
                 name="justificacion"
@@ -219,6 +266,7 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
               />
             </div>
           </div>
+          
 
           <div className="images-section">
             <label className="form-label">Imágenes Adjuntas</label>

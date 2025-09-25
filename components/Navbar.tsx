@@ -2,13 +2,18 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
+import Link from 'next/link';
+import { LayoutDashboard, Settings } from 'lucide-react';
 import LoginForm from "./LoginForm"
 import "./Navbar.css"
 
 interface UserInfo {
   id: number
   email: string
+  rol?: 'admin' | 'coordinador' | 'compras'
   isAdmin?: boolean
+  empresa?: string
+  nombreCoordinador?: string
 }
 
 const Navbar = () => {
@@ -62,8 +67,12 @@ const Navbar = () => {
     localStorage.setItem("usuarioLogueado", "true")
     localStorage.setItem("usuarioData", JSON.stringify(userData))
     
-    // Redirigir al dashboard
-    router.push('/dashboard')
+    // Redirigir según el rol del usuario
+    if (userData.rol === 'admin') {
+      router.push('/admin')
+    } else {
+      router.push('/dashboard')
+    }
   }
 
   const handleLogout = () => {
@@ -99,15 +108,32 @@ const Navbar = () => {
                 Inicio de sesión
               </button>
             ) : (
-              <div className="user-menu">
-                <span className="user-greeting">
-                  {userInfo?.isAdmin
-                    ? `${userInfo.email} (Admin)`
-                    : userInfo?.email}
-                </span>
-                <button className="navbar-button logout-btn" onClick={handleLogout}>
-                  Cerrar sesión
-                </button>
+              <div className="flex items-center gap-4">
+                {userInfo?.rol === 'admin' && (
+                  <Link 
+                    href="/admin" 
+                    className="flex items-center gap-1 text-sm font-medium hover:text-blue-600 transition-colors"
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span>Admin</span>
+                  </Link>
+                )}
+                <Link 
+                  href="/dashboard" 
+                  className="flex items-center gap-1 text-sm font-medium hover:text-blue-600 transition-colors"
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                  <span>Dashboard</span>
+                </Link>
+                <div className="user-menu">
+                  <span className="user-greeting">
+                    {userInfo?.email}
+                    {userInfo?.rol === 'admin' && ' (Admin)'}
+                  </span>
+                  <button className="navbar-button logout-btn" onClick={handleLogout}>
+                    Cerrar sesión
+                  </button>
+                </div>
               </div>
             )}
           </div>
