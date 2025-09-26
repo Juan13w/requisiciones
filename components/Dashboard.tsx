@@ -122,7 +122,8 @@ const Dashboard = () => {
     router.push("/")
   }
 
-  const handleSave = async (requisition: Omit<Requisition, "id" | "fechaCreacion" | "estado">) => {
+  // Función para manejar el guardado de una requisición
+  const handleSave = async (requisitionData: Omit<Requisition, "id" | "fechaCreacion">) => {
     try {
       // Obtener los datos del usuario desde localStorage
       const usuarioData = localStorage.getItem('usuarioData');
@@ -133,23 +134,23 @@ const Dashboard = () => {
       const user = JSON.parse(usuarioData);
       
       // Validar campos requeridos
-      if (!requisition.descripcion?.trim()) {
+      if (!requisitionData.descripcion?.trim()) {
         throw new Error("La descripción es requerida");
       }
-      if (!requisition.proceso?.trim()) {
+      if (!requisitionData.proceso?.trim()) {
         throw new Error("El proceso es requerido");
       }
-      if (!requisition.cantidad || requisition.cantidad <= 0) {
+      if (!requisitionData.cantidad || requisitionData.cantidad <= 0) {
         throw new Error("La cantidad debe ser mayor a cero");
       }
       
       // Preparar los datos para enviar
       const requisitionToSave = {
-        ...requisition,
-        empresa: requisition.empresa || user.empresa || '',
+        ...requisitionData,
+        empresa: requisitionData.empresa || user.empresa || '',
         nombreSolicitante: user.email || '',
         fechaSolicitud: new Date().toISOString().split('T')[0],
-        justificacion: requisition.justificacion || '',
+        justificacion: requisitionData.justificacion || '',
         usuarioData: user // Incluir todos los datos del usuario
       };
       
@@ -215,18 +216,93 @@ const Dashboard = () => {
     setShowForm(true);
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm("¿Estás seguro de que deseas eliminar esta requisición?")) {
-      setRequisitions((prev) => prev.filter((req) => req.id !== id))
+  const handleDelete = async (id: string) => {
+    if (!confirm("¿Estás seguro de que deseas eliminar esta requisición?")) {
+      return;
+    }
+
+    console.log('Iniciando eliminación de la requisición ID:', id);
+    
+    try {
+      const response = await fetch(`/api/requisiciones/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Respuesta del servidor:', response.status, response.statusText);
+      
+      const responseData = await response.json().catch(() => ({}));
+      console.log('Datos de la respuesta:', responseData);
+
+      if (!response.ok) {
+        const errorMessage = responseData.error || 
+                           responseData.message || 
+                           `Error al eliminar la requisición: ${response.status} ${response.statusText}`;
+        throw new Error(errorMessage);
+      }
+
+      // Actualizar el estado local después de eliminar en el servidor
+      setRequisitions((prev) => prev.filter((req) => req.id !== id));
+      
+      // Si la requisición eliminada es la que se está mostrando, cerrar el detalle
+      if (selectedRequisition?.id === id) {
+        setSelectedRequisition(null);
+      }
+      
+      console.log('Requisición eliminada correctamente');
+      alert('Requisición eliminada correctamente');
+    } catch (error) {
+      console.error('Error completo al eliminar la requisición:', error);
+      
+      // Mostrar un mensaje de error más detallado
+      let errorMessage = 'Error al eliminar la requisición';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        console.error('Detalles del error:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack,
+        });
+      }
+      
+      alert(errorMessage);
+      
+      // Recargar las requisiciones para asegurar que el estado esté sincronizado
+      try {
+        await loadRequisitions();
+      } catch (loadError) {
+        console.error('Error al recargar las requisiciones:', loadError);
+      }
     }
   }
 
 
   // Preparar datos iniciales para el formulario
-  const getInitialData = () => {
+  const getInitialData = (): Omit<Requisition, 'id' | 'fechaCreacion'> => {
     if (editingId) {
-      return requisitions.find((r) => r.id === editingId);
+      const requisition = requisitions.find((r) => r.id === editingId);
+      // Asegurarse de que el comentario de rechazo y el estado se incluyan si existen
+      if (requisition) {
+        // Asegurarse de que el estado sea uno de los valores permitidos
+        const estadoValido: 'pendiente' | 'aprobada' | 'rechazada' | 'correccion' = 
+          requisition.estado === 'pendiente' || 
+          requisition.estado === 'aprobada' || 
+          requisition.estado === 'rechazada' || 
+          requisition.estado === 'correccion' 
+            ? requisition.estado 
+            : 'pendiente';
+            
+        return {
+          ...requisition,
+          estado: estadoValido,
+          comentarioRechazo: requisition.comentarioRechazo || ""
+        };
+      }
     }
+    
+    // Si no hay requisición existente, devolver una nueva con valores por defecto
     return {
       consecutivo: `REQ-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
       empresa: userData?.empresa || "",
@@ -237,6 +313,8 @@ const Dashboard = () => {
       cantidad: 1,
       imagenes: [],
       fechaSolicitud: new Date().toISOString().split("T")[0],
+      comentarioRechazo: "",
+      estado: 'pendiente'
     };
   };
 

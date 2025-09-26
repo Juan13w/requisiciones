@@ -13,7 +13,6 @@ const transporter = nodemailer.createTransport({
 
 // Interfaz para los datos de la requisición
 interface RequisicionData {
-  id: number;
   titulo: string;
   descripcion: string;
   fecha_creacion: string;
@@ -34,7 +33,7 @@ export async function enviarNotificacionRequisicion(
     const mailOptions = {
       from: `"Sistema de Requisiciones" <${process.env.EMAIL_FROM || 'no-reply@empresa.com'}>`,
       to,
-      subject: `Nueva Requisición #${requisicion.id} - ${requisicion.titulo}`,
+      subject: `Nueva Requisición #${requisicion.titulo}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #2563eb;">Nueva Requisición Creada</h2>
@@ -42,7 +41,7 @@ export async function enviarNotificacionRequisicion(
           
           <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
             <h3 style="margin-top: 0; color: #1f2937;">Detalles de la Requisición</h3>
-            <p><strong>ID:</strong> ${requisicion.id}</p>
+            
             <p><strong>Título:</strong> ${requisicion.titulo}</p>
             <p><strong>Descripción:</strong> ${requisicion.descripcion}</p>
             <p><strong>Fecha de creación:</strong> ${new Date(requisicion.fecha_creacion).toLocaleDateString()}</p>

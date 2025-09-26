@@ -4,7 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShoppingCart, LogOut } from 'lucide-react';
+import StyleProvider from '@/components/StyleProvider';
 import './dashboard-styles.css';
+
+// Importar estilos globales
+import '@/styles/ComprasDashboard.css';
+import '@/styles/RequisitionDetails.css';
+import '@/styles/charts.css';
 
 export default function DashboardLayout({
   children,
@@ -55,35 +61,34 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="dashboard-container">
-      <div className="main-content">
-        {/* Navbar superior */}
-        <nav className="dashboard-nav">
-          <div className="nav-container">
-            <div className="nav-brand">
-              <Link href="/dashboard-compras" className="brand-link">
-                Sistema de Requisiciones
-              </Link>
-              <span className="brand-subtitle">Departamento de Compras</span>
+    <StyleProvider>
+      <div className="dashboard-container">
+        <div className="main-content">
+          {/* Navbar superior */}
+          <nav className="navbar">
+            <div className="nav-container">
+              <div className="nav-brand">
+                <Link href="/dashboard-compras" className="brand-link">
+                  Sistema de Requisiciones
+                </Link>
+              </div>
+              <div className="nav-links">
+                <div className="user-info">
+                  <span className="user-email">{user?.email}</span>
+                  <button onClick={handleLogout} className="logout-btn">
+                    <LogOut size={16} />
+                    <span>Cerrar sesión</span>
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="nav-actions">
-              <span className="user-badge">
-                <ShoppingCart className="user-badge-icon" />
-                {user?.email || 'Usuario'}
-              </span>
-              <button className="logout-button" onClick={handleLogout}>
-                <LogOut className="w-4 h-4" />
-                Cerrar Sesión
-              </button>
-            </div>
-          </div>
-        </nav>
+          </nav>
 
-        {/* Contenido principal */}
-        <main className="page-content">
-          <div className="content-wrapper">{children}</div>
-        </main>
+          <main className="content-wrapper">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </StyleProvider>
   );
 }

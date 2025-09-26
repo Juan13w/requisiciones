@@ -172,5 +172,62 @@ export async function GET(request: Request, { params }: { params: { id: string }
   }
 }
 
+/**
+ * Maneja las solicitudes DELETE para eliminar una requisición.
+ */
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  console.log('Solicitud DELETE recibida para la requisición ID:', params.id);
+  const requisicionId = parseInt(params.id, 10);
+  
+  if (isNaN(requisicionId) || requisicionId <= 0) {
+    console.error('ID de requisición no válido:', params.id);
+    return NextResponse.json({ success: false, error: 'ID de requisición no válido' }, { status: 400 });
+  }
+
+  try {
+    console.log('Verificando si la requisición existe...');
+    // Verificar primero si la requisición existe
+    const [existing] = await query<any[]>('SELECT 1 FROM requisicion WHERE requisicion_id = ?', [requisicionId]);
+    
+    if (existing.length === 0) {
+      console.error('Requisición no encontrada con ID:', requisicionId);
+      return NextResponse.json({ success: false, error: 'Requisición no encontrada' }, { status: 404 });
+    }
+
+    console.log('Eliminando historial de estados relacionado...');
+    try {
+      // Primero, eliminar el historial relacionado si existe
+      await query('DELETE FROM historial_estados WHERE requisicion_id = ?', [requisicionId]);
+      console.log('Historial de estados eliminado correctamente');
+    } catch (historyError) {
+      console.warn('No se pudo eliminar el historial de estados (puede que no exista):', historyError);
+      // Continuamos aunque falle, ya que el historial podría no existir
+    }
+    
+    console.log('Eliminando la requisición...');
+    // Luego, eliminar la requisición
+    const result = await query('DELETE FROM requisicion WHERE requisicion_id = ?', [requisicionId]) as unknown as { affectedRows: number };
+    
+    console.log('Resultado de la eliminación:', result);
+    
+    if (result.affectedRows === 0) {
+      console.error('No se afectaron filas al intentar eliminar la requisición');
+      return NextResponse.json({ success: false, error: 'No se pudo eliminar la requisición' }, { status: 500 });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Requisición eliminada correctamente' 
+    });
+  } catch (error) {
+    console.error('Error al eliminar la requisición:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido al eliminar la requisición';
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Error al eliminar la requisición',
+      details: errorMessage 
+    }, { status: 500 });
+  }
+}
 
   

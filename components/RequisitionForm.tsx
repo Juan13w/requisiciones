@@ -6,15 +6,20 @@ import { useState, useRef, type ChangeEvent, useEffect, useCallback } from "reac
 import type { Requisition } from "@/types/requisition"
 import { AutoCompleteInput } from "./ui/AutoCompleteInput"
 
+// Definir un tipo para los datos del formulario que incluye el estado como opcional
+type RequisitionFormData = Omit<Requisition, "id" | "fechaCreacion">;
+
 interface RequisitionFormProps {
-  onSave: (requisition: Omit<Requisition, "id" | "fechaCreacion" | "estado">) => void
+  onSave: (requisition: RequisitionFormData) => void
   onCancel: () => void
-  initialData?: Omit<Requisition, "id" | "fechaCreacion" | "estado">
+  initialData?: RequisitionFormData & {
+    estado?: 'pendiente' | 'aprobada' | 'rechazada' | 'correccion';
+  };
 }
 
 export default function RequisitionForm({ onSave, onCancel, initialData }: RequisitionFormProps) {
-  const [formData, setFormData] = useState<Omit<Requisition, "id" | "fechaCreacion" | "estado">>(
-    initialData || {
+  const [formData, setFormData] = useState<RequisitionFormData & { estado?: string }>(
+    initialData ? { ...initialData, estado: initialData.estado } : {
       consecutivo: "",
       empresa: "",
       fechaSolicitud: new Date().toISOString().split("T")[0],
@@ -24,6 +29,8 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
       descripcion: "",
       cantidad: 1,
       imagenes: [],
+      comentarioRechazo: "",
+      estado: 'pendiente',
     },
   )
 
@@ -110,7 +117,6 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
         reader.readAsDataURL(file)
       })
     })
-
     Promise.all(imagePromises)
       .then((images) => {
         setFormData((prev) => ({
@@ -124,19 +130,31 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
       })
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    setIsSubmitting(true);
-    try {
-      // Llamar a la función onSave con los datos del formulario
-      onSave(formData);
-    } catch (error) {
-      console.error('Error al guardar la requisición:', error);
-      alert('Error al guardar la requisición. Por favor, inténtalo de nuevo.');
-    } finally {
-      setIsSubmitting(false)
+  // Manejador para enviar el formulario
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    // Validar campos requeridos
+    if (!formData.descripcion?.trim()) {
+      alert("La descripción es requerida")
+      return
     }
+    if (!formData.proceso?.trim()) {
+      alert("El proceso es requerido")
+      return
+    }
+    if (!formData.cantidad || formData.cantidad <= 0) {
+      alert("La cantidad debe ser mayor a cero")
+      return
+    }
+    
+    // Crear un objeto con los datos del formulario sin el estado
+    const { estado, ...formDataWithoutState } = formData;
+    
+    // Llamar a la función onSave con los datos del formulario
+    onSave({
+      ...formDataWithoutState,
+      estado: estado || 'pendiente'
+    })
   }
 
   const removeImage = (index: number) => {
@@ -267,6 +285,33 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
             </div>
           </div>
           
+          {/* Mostrar comentario de rechazo si existe y la requisición está en estado de corrección o rechazada */}
+          {(() => {
+            // Determinar el estado actual de la requisición
+            const estadoActual = formData.estado || initialData?.estado;
+            const comentarioRechazo = formData.comentarioRechazo || initialData?.comentarioRechazo;
+            
+            // Solo mostrar si hay un comentario de rechazo y el estado es de corrección o rechazada
+            if (comentarioRechazo && (estadoActual === 'correccion' || estadoActual === 'rechazada')) {
+              return (
+                <div className="mt-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 pt-0.5">
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-red-800">
+                        {estadoActual === 'correccion' ? 'Se requiere corrección' : 'Comentario de Rechazo'}
+                      </h3>
+                      <div className="mt-2 text-sm text-red-700">
+                        <p>{comentarioRechazo}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
 
           <div className="images-section">
             <label className="form-label">Imágenes Adjuntas</label>

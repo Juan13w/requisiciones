@@ -101,7 +101,6 @@ export async function POST(request: Request) {
           
           // Enviar notificación por correo electrónico
           await enviarNotificacionRequisicion(process.env.NOTIFICATION_EMAIL, {
-            id: reqData.id,
             titulo: `Requisición ${reqData.consecutivo}`,
             descripcion: reqData.descripcion || 'Sin descripción adicional',
             fecha_creacion: reqData.fecha_solicitud,
@@ -134,7 +133,8 @@ export async function GET(request: Request) {
     const coordinadorId = searchParams.get('coordinadorId');
 
     let query = `
-      SELECT r.*, c.correo as coordinador_email, c.empresa as coordinador_empresa 
+      SELECT r.*, c.correo as coordinador_email, c.empresa as coordinador_empresa,
+             r.comentario_rechazo as comentarioRechazo
       FROM requisicion r
       LEFT JOIN coordinador c ON r.coordinador_id = c.coordinador_id
     `;
@@ -178,6 +178,7 @@ export async function GET(request: Request) {
         cantidad: Number(row.cantidad) || 1,
         imagenes: imagenes,
         estado: row.estado || 'pendiente', // Asegurar que siempre haya un estado
+        comentarioRechazo: row.comentarioRechazo || row.comentario_rechazo || '', // Incluir el comentario de rechazo
         fechaCreacion: row.fecha_creacion 
           ? new Date(row.fecha_creacion).getTime() 
           : (row.fecha_solicitud 

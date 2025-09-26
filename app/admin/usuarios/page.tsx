@@ -14,6 +14,7 @@ type User = {
   email: string;
   role: 'coordinator' | 'purchaser';
   empresa?: string;
+  clave?: string;
 };
 
 export default function AdminUsersPage() {
@@ -26,6 +27,7 @@ export default function AdminUsersPage() {
     email: '',
     role: 'coordinator' as 'coordinator' | 'purchaser',
     empresa: '',
+    clave: '',
   });
 
   useEffect(() => {
@@ -108,6 +110,7 @@ export default function AdminUsersPage() {
           email: formData.email,
           role: formData.role,
           empresa: formData.role === 'coordinator' ? formData.empresa : undefined,
+          clave: formData.clave || undefined,
         }),
       });
 
@@ -141,6 +144,7 @@ export default function AdminUsersPage() {
       email: user.correo || user.email,
       role,
       empresa: user.empresa || '',
+      clave: user.clave || '',
     });
     setIsAdding(true);
   };
@@ -174,6 +178,7 @@ export default function AdminUsersPage() {
       email: '',
       role: 'coordinator',
       empresa: '',
+      clave: '',
     });
     setEditingId(null);
     setIsAdding(false);
@@ -226,6 +231,21 @@ export default function AdminUsersPage() {
                   onChange={handleInputChange}
                   placeholder="usuario@empresa.com"
                   required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {editingId ? 'Nueva Contraseña (dejar en blanco para no cambiar)' : 'Contraseña'}
+                </label>
+                <Input
+                  type="password"
+                  name="clave"
+                  value={formData.clave || ''}
+                  onChange={handleInputChange}
+                  placeholder="••••••••"
+                  minLength={6}
+                  required={!editingId}
                 />
               </div>
               

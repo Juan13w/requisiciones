@@ -10,7 +10,7 @@ export async function PUT(
   const connection = await pool.getConnection();
   
   try {
-    const { email, role, empresa } = await request.json();
+    const { email, role, empresa, clave } = await request.json();
     const { id } = params;
 
     if (!email) {
@@ -28,10 +28,17 @@ export async function PUT(
     }
 
     if (role === 'coordinator') {
-      await connection.query(
-        'UPDATE coordinador SET correo = ?, empresa = ? WHERE coordinador_id = ?',
-        [email, empresa, id]
-      );
+      if (clave) {
+        await connection.query(
+          'UPDATE coordinador SET correo = ?, empresa = ?, clave = ? WHERE coordinador_id = ?',
+          [email, empresa, clave, id]
+        );
+      } else {
+        await connection.query(
+          'UPDATE coordinador SET correo = ?, empresa = ? WHERE coordinador_id = ?',
+          [email, empresa, id]
+        );
+      }
       
       const [updatedUser] = await connection.query<RowDataPacket[]>(
         'SELECT coordinador_id as id, correo, empresa FROM coordinador WHERE coordinador_id = ?',
@@ -44,10 +51,17 @@ export async function PUT(
       });
       
     } else if (role === 'purchaser') {
-      await connection.query(
-        'UPDATE compras SET correo = ? WHERE usuario_id = ?',
-        [email, id]
-      );
+      if (clave) {
+        await connection.query(
+          'UPDATE compras SET correo = ?, clave = ? WHERE usuario_id = ?',
+          [email, clave, id]
+        );
+      } else {
+        await connection.query(
+          'UPDATE compras SET correo = ? WHERE usuario_id = ?',
+          [email, id]
+        );
+      }
       
       const [updatedUser] = await connection.query<RowDataPacket[]>(
         'SELECT usuario_id as id, correo FROM compras WHERE usuario_id = ?',

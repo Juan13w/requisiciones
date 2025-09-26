@@ -53,27 +53,28 @@ interface ApiResponse<T> {
   message?: string;
   details?: string;
   fileUrl?: string;
-  filename?: string;
 }
 
 export default function DashboardCompras() {
   const [requisiciones, setRequisiciones] = useState<RequisicionDB[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedEmpresa, setSelectedEmpresa] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isSendingReport, setIsSendingReport] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportSuccess, setReportSuccess] = useState<string | null>(null);
   const [showSendModal, setShowSendModal] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<Estado | 'todos'>('todos');
   const [emailMessage, setEmailMessage] = useState('');
   const [sendReportError, setSendReportError] = useState<string | null>(null);
   const [sendReportSuccess, setSendReportSuccess] = useState<string | null>(null);
   const [empresas, setEmpresas] = useState<string[]>([]);
   const [empresasLoading, setEmpresasLoading] = useState(false);
   const [empresasError, setEmpresasError] = useState<string | null>(null);
-  const [selectedEmpresa, setSelectedEmpresa] = useState<string | null>(null);
 
   // Historial modal state
   type HistEntry = {
@@ -138,7 +139,7 @@ export default function DashboardCompras() {
         setRequisiciones(data.map((req) => formatRequisicion(req)));
       } catch (err) {
         console.error('Error al cargar las requisiciones:', err);
-        setError(err instanceof Error ? err.message : 'Error desconocido');
+        setReportError(err instanceof Error ? err.message : 'Error desconocido al cargar las requisiciones');
       } finally {
         setLoading(false);
       }
@@ -327,7 +328,7 @@ export default function DashboardCompras() {
   // Generar reporte
   const handleGenerateReport = async () => {
     try {
-      setIsGeneratingReport(true);
+      setIsSendingReport(true);
       setReportError(null);
       setReportSuccess(null);
 
@@ -340,7 +341,8 @@ export default function DashboardCompras() {
 
       const link = document.createElement('a');
       link.href = data.fileUrl;
-      link.download = data.filename || 'reporte-requisiciones.pdf';
+      // Usamos un nombre de archivo por defecto ya que data.filename no está definido en el tipo
+      link.download = 'reporte-requisiciones.pdf';
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       document.body.appendChild(link);
@@ -353,7 +355,7 @@ export default function DashboardCompras() {
       setReportError(err instanceof Error ? err.message : 'Error desconocido');
       setTimeout(() => setReportError(null), 10000);
     } finally {
-      setIsGeneratingReport(false);
+      setIsSendingReport(false);
     }
   };
 
@@ -374,15 +376,27 @@ export default function DashboardCompras() {
       setSendReportError(null);
       setSendReportSuccess(null);
 
+      // Preparar los datos de las requisiciones para el reporte
+      const requisicionesParaReporte = filteredRequisiciones.map(req => ({
+        consecutivo: req.consecutivo,
+        empresa: req.empresa,
+        nombreSolicitante: req.nombreSolicitante,
+        proceso: req.proceso,
+        estado: req.estado,
+        fechaSolicitud: req.fechaSolicitud,
+        descripcion: req.descripcion,
+        cantidad: req.cantidad,
+        justificacion: req.justificacion
+      }));
+
       const response = await fetch('/api/reportes/enviar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: recipientEmail,
           subject: 'Reporte de Requisiciones',
-          message:
-            emailMessage ||
-            'Adjunto encontrará el reporte de requisiciones solicitado.',
+          message: emailMessage || 'Adjunto encontrará el reporte de requisiciones solicitado.',
+          requisiciones: requisicionesParaReporte
         }),
       });
 
@@ -396,13 +410,15 @@ export default function DashboardCompras() {
       setRecipientEmail('');
       setEmailMessage('');
 
+      // Cerrar el modal después de 2 segundos
       setTimeout(() => {
         setShowSendModal(false);
         setSendReportSuccess(null);
       }, 2000);
     } catch (err) {
+      console.error('Error al enviar el reporte:', err);
       setSendReportError(
-        err instanceof Error ? err.message : 'Error desconocido al enviar'
+        err instanceof Error ? err.message : 'Error desconocido al enviar el reporte'
       );
     } finally {
       setIsSendingReport(false);
@@ -474,13 +490,13 @@ case 'correccion':
   }
 
   // Error
-  if (error) {
+  if (reportError) {
     return (
       <div className="dashboard-page">
         <div className="error-container">
           <AlertCircle size={48} className="error-icon" />
           <h2>Error al cargar las requisiciones</h2>
-          <p>{error}</p>
+          <p>{reportError}</p>
           <button onClick={() => window.location.reload()} className="retry-button">
             Reintentar
           </button>
@@ -496,10 +512,29 @@ case 'correccion':
   const rechazadas = requisiciones.filter((r) => r.estado === 'rechazada').length;
   const enCorreccion = requisiciones.filter((r) => r.estado === 'correccion').length;
 
-  // Filtro por empresa
-  const filteredRequisiciones = selectedEmpresa
-    ? requisiciones.filter((r) => r.empresa === selectedEmpresa)
-    : requisiciones;
+  // Filtros combinados
+  const filteredRequisiciones = requisiciones.filter((req) => {
+    // Filtro por empresa
+    if (selectedEmpresa && req.empresa !== selectedEmpresa) return false;
+    
+    // Filtro por estado
+    if (statusFilter !== 'todos' && req.estado !== statusFilter) return false;
+    
+    // Filtro de búsqueda
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        (req.consecutivo?.toLowerCase().includes(searchLower)) ||
+        req.empresa.toLowerCase().includes(searchLower) ||
+        req.nombreSolicitante.toLowerCase().includes(searchLower) ||
+        req.proceso.toLowerCase().includes(searchLower) ||
+        req.descripcion.toLowerCase().includes(searchLower) ||
+        req.estado.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return true;
+  });
   const countByEmpresa = requisiciones.reduce<Record<string, number>>((acc, r) => {
     if (r.empresa) acc[r.empresa] = (acc[r.empresa] || 0) + 1;
     return acc;
@@ -519,10 +554,10 @@ case 'correccion':
           <button
             className="action-btn generate-report-btn"
             onClick={handleGenerateReport}
-            disabled={isGeneratingReport}
+            disabled={isSendingReport}
           >
             <FileText className="btn-icon" />
-            {isGeneratingReport ? 'Generando...' : 'Generar Reporte'}
+            {isSendingReport ? 'Generando...' : 'Generar Reporte'}
           </button>
           <button
             className="action-btn send-report-btn"
@@ -635,6 +670,54 @@ case 'correccion':
           <p className="section-description">
             {selectedEmpresa ? 'Filtradas por empresa seleccionada' : 'Últimas solicitudes enviadas por los coordinadores'}
           </p>
+        </div>
+
+        {/* Filtros de búsqueda */}
+        <div className="filters-container mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-4 w-full">
+            {/* Filtro de búsqueda */}
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Buscar por empresa, solicitante, proceso..."
+                className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 border"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            {/* Filtro por estado */}
+            <div className="w-full sm:w-48">
+              <select
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 border"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as Estado | 'todos')}
+              >
+                <option value="todos">Todos los estados</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="aprobada">Aprobada</option>
+                <option value="rechazada">Rechazada</option>
+                <option value="correccion">En corrección</option>
+                <option value="cerrada">Cerrada</option>
+              </select>
+            </div>
+            
+            {/* Botón para limpiar filtros */}
+            {(searchTerm || statusFilter !== 'todos') && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('todos');
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
         </div>
         
         <div className="requisition-grid">
@@ -754,68 +837,141 @@ case 'correccion':
         </div>
       </div>
 
-      {/* MODAL PARA ENVIAR REPORTE */}
+      {/* MODAL PARA ENVIAR REPORTE - NUEVO DISEÑO */}
       {showSendModal && (
-        <div className="modal-backdrop">
-          <div className="modal">
-            <h2 className="modal-title">Enviar Reporte por Correo</h2>
-            <p className="modal-description">
-              Ingrese el correo electrónico y un mensaje opcional para enviar el
-              reporte.
-            </p>
-
-            <div className="modal-form">
-              <label className="form-label">Correo electrónico:</label>
-              <input
-                type="email"
-                value={recipientEmail}
-                onChange={(e) => setRecipientEmail(e.target.value)}
-                className="form-input"
-                placeholder="ejemplo@empresa.com"
-              />
-
-              <label className="form-label">Mensaje (opcional):</label>
-              <textarea
-                value={emailMessage}
-                onChange={(e) => setEmailMessage(e.target.value)}
-                className="form-input"
-                rows={3}
-                placeholder="Escriba un mensaje personalizado..."
-              />
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1rem',
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '0.75rem',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            width: '100%',
+            maxWidth: '28rem',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            {/* Encabezado */}
+            <div className="bg-blue-600 text-white p-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Enviar Reporte por Correo</h2>
+                <button
+                  onClick={() => {
+                    setShowSendModal(false);
+                    setRecipientEmail('');
+                    setEmailMessage('');
+                    setSendReportError(null);
+                    setSendReportSuccess(null);
+                  }}
+                  className="text-white/80 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 rounded-full p-1"
+                  disabled={isSendingReport}
+                  aria-label="Cerrar modal"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <p className="mt-1 text-blue-100 text-sm">
+                Complete los campos para enviar el reporte por correo electrónico.
+              </p>
             </div>
 
-            {sendReportError && (
-              <div className="alert error">
-                <AlertCircle className="icon" /> {sendReportError}
+            {/* Cuerpo del formulario */}
+            <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Correo electrónico <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={recipientEmail}
+                  onChange={(e) => setRecipientEmail(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:opacity-50 disabled:bg-gray-50"
+                  placeholder="ejemplo@empresa.com"
+                  disabled={isSendingReport}
+                  aria-required="true"
+                />
               </div>
-            )}
-            {sendReportSuccess && (
-              <div className="alert success">
-                <CheckCircle className="icon" /> {sendReportSuccess}
-              </div>
-            )}
 
-            <div className="modal-actions">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Mensaje (opcional)
+                </label>
+                <textarea
+                  value={emailMessage}
+                  onChange={(e) => setEmailMessage(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors min-h-[100px] disabled:opacity-50 disabled:bg-gray-50"
+                  placeholder="Escriba un mensaje personalizado..."
+                  disabled={isSendingReport}
+                  aria-label="Mensaje opcional para el correo"
+                />
+              </div>
+
+              {/* Mensajes de estado */}
+              {sendReportError && (
+                <div className="p-3 bg-red-50 text-red-700 rounded-lg flex items-start space-x-2">
+                  <AlertCircle className="flex-shrink-0 w-5 h-5 mt-0.5" />
+                  <span className="text-sm">{sendReportError}</span>
+                </div>
+              )}
+              
+              {sendReportSuccess && (
+                <div className="p-3 bg-green-50 text-green-700 rounded-lg flex items-start space-x-2">
+                  <CheckCircle className="flex-shrink-0 w-5 h-5 mt-0.5" />
+                  <span className="text-sm">{sendReportSuccess}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Pie del modal - Acciones */}
+            <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3 border-t border-gray-200">
               <button
-                className="action-btn cancel"
-                onClick={() => setShowSendModal(false)}
+                type="button"
+                onClick={() => {
+                  setShowSendModal(false);
+                  setRecipientEmail('');
+                  setEmailMessage('');
+                  setSendReportError(null);
+                  setSendReportSuccess(null);
+                }}
                 disabled={isSendingReport}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
               >
                 Cancelar
               </button>
+              
               <button
-                className="action-btn send"
+                type="button"
                 onClick={handleSendReport}
-                disabled={isSendingReport}
+                disabled={isSendingReport || !recipientEmail}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${
+                  isSendingReport || !recipientEmail
+                    ? 'bg-blue-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
               >
                 {isSendingReport ? (
-                  <>
-                    <Download className="btn-icon animate-spin" /> Enviando...
-                  </>
+                  <span className="flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Enviando...
+                  </span>
                 ) : (
-                  <>
-                    <Send className="btn-icon" /> Enviar Reporte
-                  </>
+                  <span className="flex items-center">
+                    <Send className="w-4 h-4 mr-2" />
+                    Enviar Reporte
+                  </span>
                 )}
               </button>
             </div>

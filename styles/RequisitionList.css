@@ -78,6 +78,7 @@
   border: 1px solid #e2e8f0;
   border-radius: 0.5rem;
   font-size: 0.875rem;
+  max-width: 200px;
 }
 
 .requisition-actions {

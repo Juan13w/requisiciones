@@ -117,12 +117,62 @@ export async function GET() {
       completadasResult[0]?.total || 0 : 
       (completadasResult as any)?.total || 0;
     
+      // Obtener estadísticas por estado
+      const porEstadoQuery = `
+        SELECT 
+          estado,
+          COUNT(*) as cantidad,
+          ROUND((COUNT(*) * 100.0) / (SELECT COUNT(*) FROM requisicion), 2) as porcentaje
+        FROM requisicion
+        GROUP BY estado
+        ORDER BY cantidad DESC`;
+
+      // Obtener estadísticas por proceso
+      const porProcesoQuery = `
+        SELECT 
+          proceso,
+          COUNT(*) as cantidad,
+          ROUND((COUNT(*) * 100.0) / (SELECT COUNT(*) FROM requisicion), 2) as porcentaje
+        FROM requisicion
+        GROUP BY proceso
+        ORDER BY cantidad DESC`;
+
+      // Obtener estadísticas por día
+      const porDiaQuery = `
+        SELECT 
+          DATE(fecha_solicitud) as fecha,
+          SUM(CASE WHEN estado = 'aprobada' THEN 1 ELSE 0 END) as aprobadas,
+          SUM(CASE WHEN estado = 'rechazada' THEN 1 ELSE 0 END) as rechazadas,
+          SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
+          COUNT(*) as total
+        FROM requisicion
+        WHERE fecha_solicitud >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        GROUP BY DATE(fecha_solicitud)
+        ORDER BY fecha`;
+
+      // Ejecutar consultas de gráficos
+      const [porEstado, porProceso, porDia] = await Promise.all([
+        query(porEstadoQuery).catch(e => {
+          console.error('Error en consulta porEstado:', e);
+          return [];
+        }),
+        query(porProcesoQuery).catch(e => {
+          console.error('Error en consulta porProceso:', e);
+          return [];
+        }),
+        query(porDiaQuery).catch(e => {
+          console.error('Error en consulta porDia:', e);
+          return [];
+        })
+      ]);
+
       // Formatear respuesta
       const responseData = {
-        totalUsuarios: Number(totalUsuarios),
-        hoyRequisiciones: Number(hoy) || 0,
-        totalRequisiciones: Number(totalRequisiciones) || 0,
-        completadasRequisiciones: Number(completadas) || 0
+        data: {
+          porEstado: Array.isArray(porEstado) ? porEstado : [],
+          porProceso: Array.isArray(porProceso) ? porProceso : [],
+          porDia: Array.isArray(porDia) ? porDia : []
+        }
       };
 
       console.log('Estadísticas del dashboard:', responseData);
