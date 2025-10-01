@@ -152,10 +152,20 @@ export default function RequisitionList({
           filteredRequisitions.map((requisition) => (
             <div key={requisition.id} className="requisition-item">
               <div className="requisition-header">
-                <h3 className="requisition-title">
-                  <span className="consecutivo">{requisition.consecutivo || 'S/N'}</span>
-                  {requisition.descripcion ? requisition.descripcion.substring(0, 50) + (requisition.descripcion.length > 50 ? '...' : '') : 'Requisición sin descripción'}
-                </h3>
+                <div className="requisition-title">
+                  <div className="consecutivo">
+                    <FileText size={16} className="detail-icon" />
+                    <span>{requisition.consecutivo || 'S/N'}</span>
+                  </div>
+                  <div className="solicitante">
+                    <User size={16} className="detail-icon" />
+                    <span>{requisition.nombreSolicitante || 'Solicitante no especificado'}</span>
+                  </div>
+                  <div className="fecha">
+                    <Calendar size={16} className="detail-icon" />
+                    <span>{requisition.fechaSolicitud ? formatDate(requisition.fechaSolicitud) : 'Sin fecha'}</span>
+                  </div>
+                </div>
                 <span className={`requisition-status ${getStatusColor(requisition.estado)}`}>
                   {requisition.estado || 'Pendiente'}
                 </span>
@@ -168,14 +178,9 @@ export default function RequisitionList({
               )}
               
               <div className="requisition-details">
-                <div className="detail-item">
-                  <User size={14} className="detail-icon" />
-                  <span>{requisition.nombreSolicitante || 'Solicitante no especificado'}</span>
-                </div>
-                
                 {requisition.proceso && (
                   <div className="detail-item">
-                    <FileText size={14} className="detail-icon" />
+                    <Building size={14} className="detail-icon" />
                     <span>{requisition.proceso}</span>
                   </div>
                 )}
@@ -189,18 +194,6 @@ export default function RequisitionList({
               </div>
               
               <div className="requisition-footer">
-                <div className="date-info">
-                  <span className="date-item">
-                    <Calendar size={14} className="date-icon" />
-                    {requisition.fechaSolicitud ? formatDate(requisition.fechaSolicitud) : 'Sin fecha'}
-                  </span>
-                  {requisition.fechaCreacion && (
-                    <span className="date-item">
-                      <Clock size={14} className="date-icon" />
-                      {formatTimeAgo(requisition.fechaCreacion)}
-                    </span>
-                  )}
-                </div>
                 
                 <div className="requisition-actions">
                   {requisition.estado === 'correccion' && onEdit && (

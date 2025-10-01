@@ -89,21 +89,45 @@
 }
 
 .requisition-list {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
   margin-top: 1rem;
   padding: 0.5rem 0;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.requisition-list::-webkit-scrollbar {
+  height: 8px;
+}
+
+.requisition-list::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.requisition-list::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 4px;
 }
 
 .requisition-item {
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid #edf2f7;
+  padding: 1.25rem;
   background-color: #ffffff;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  min-width: 300px;
+  max-width: 350px;
+  flex: 1 1 300px;
+  border: 1px solid #e2e8f0;
+  position: relative; /* Añadido para que el estado se posicione correctamente */
 }
 
 .requisition-item:last-child {
@@ -134,17 +158,21 @@
 }
 
 .requisition-status {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  padding: 0.25rem 0.6rem;
-  border-radius: 9999px;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.25rem;
   text-transform: capitalize;
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
   white-space: nowrap;
-  line-height: 1;
+  line-height: 1.1;
   letter-spacing: 0.01em;
+  position: absolute;
+  top: 0.6rem;
+  right: 0.8rem;
+  z-index: 1;
 }
 
 .status-badge svg {
@@ -209,39 +237,17 @@
 
 /* Header de la tarjeta */
 .requisition-header {
+  position: relative;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: flex-start;
-  margin-bottom: 0.25rem;
-  gap: 1rem;
-  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding-right: 1rem;
+  min-height: 1.5rem;
 }
 
-/* Contenido principal */
-.requisition-content {
-  flex-grow: 1;
-  margin: 0.25rem 0 0.5rem;
-}
-
-/* Pie de la tarjeta */
-.requisition-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 0.5rem;
-  border-top: 1px solid #f1f5f9;
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
-  color: #64748b;
-}
-
-.date-info {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  font-size: 0.75rem;
-  color: #64748b;
-}
+/* Estilos del estado movidos a la parte superior del archivo */
 
 .date-item {
   display: flex;
@@ -265,10 +271,13 @@
 .requisition-actions {
   display: flex;
   gap: 0.5rem;
-  margin-top: 0.75rem;
   justify-content: flex-end;
-  padding-left: 0;
+  padding: 0.75rem 0 0;
   flex-wrap: wrap;
+  width: 100%;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
 }
 
 .detail-icon {
@@ -283,14 +292,18 @@
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  padding: 0.4rem 0.75rem;
-  border-radius: 0.375rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.5rem;
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
   border: 1px solid transparent;
   line-height: 1.25;
+  min-width: 100px;
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .action-btn .action-icon {

@@ -47,6 +47,37 @@
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
+}
+
+.req-header-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.coordinador-email {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-left: 0.5rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.coordinador-email::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2364748b'%3E%3Cpath d='M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: 0.8;
 }
 
 .req-consecutivo {
@@ -105,13 +136,22 @@
 
 /* styles/RequisitionDetails.css */
 .status-badge {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
 }
 
 .status-badge.warning {
-  @apply bg-yellow-100 text-yellow-800;
+  background-color: rgb(254 240 138);
+  color: rgb(133 77 14);
 }
 
 .status-badge .icon {
-  @apply h-3.5 w-3.5 mr-1.5;
+  height: 0.875rem;
+  width: 0.875rem;
+  margin-right: 0.375rem;
 }

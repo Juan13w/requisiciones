@@ -43,6 +43,7 @@ interface RequisicionDB {
   comentarioRechazo: string;
   fechaUltimoRechazo: string;
   fechaUltimaModificacion: string;
+  coordinador_email?: string;
 }
 
 // Tipado de respuestas de la API
@@ -118,6 +119,7 @@ export default function DashboardCompras() {
     comentarioRechazo: req.comentarioRechazo || '',
     fechaUltimoRechazo: req.fechaUltimoRechazo || '',
     fechaUltimaModificacion: req.fechaUltimaModificacion || new Date().toISOString(),
+    coordinador_email: req.coordinador_email || undefined,
   });
 
   // Cargar requisiciones
@@ -726,38 +728,17 @@ case 'correccion':
               <div className="requisition-card-header">
                 <div className="requisition-card-title">
                   <div className="requisition-id">{req.consecutivo || req.id}</div>
-                  <h3>{req.nombreSolicitante}</h3>
+                  <h3 className="requisition-solicitante">{req.nombreSolicitante}</h3>
+                  <div className="requisition-date">
+                    {new Date(req.fechaCreacion).toLocaleDateString('es-ES', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric'
+                    })}
+                  </div>
                 </div>
                 <div className={`status-badge ${req.estado}`}>
                   {req.estado.charAt(0).toUpperCase() + req.estado.slice(1)}
-                </div>
-              </div>
-              
-              <div className="requisition-card-details">
-              {req.estado === 'correccion' && req.comentarioRechazo && (
-              <div className="correction-comment">
-                <strong>Comentario de corrección:</strong>
-                <p>{req.comentarioRechazo}</p>
-              </div>
-               )}
-
-                <div className="detail-row">
-                  <span className="detail-label">Empresa:</span>
-                  <span className="detail-value">{req.empresa}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Proceso:</span>
-                  <span className="detail-value">{req.proceso}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Cantidad:</span>
-                  <span className="detail-value">{req.cantidad}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Fecha:</span>
-                  <span className="detail-value">
-                    {new Date(req.fechaCreacion || Date.now()).toLocaleDateString('es-ES')}
-                  </span>
                 </div>
               </div>
               
@@ -1094,7 +1075,14 @@ case 'correccion':
             </div>
             <div className="modal-body">
               <div className="req-header">
-                <span className="req-consecutivo">{showDetailModal.req.consecutivo || showDetailModal.req.id}</span>
+                <div className="req-header-info">
+                  <span className="req-consecutivo">{showDetailModal.req.consecutivo || showDetailModal.req.id}</span>
+                  {showDetailModal.req.coordinador_email && (
+                    <span className="coordinador-email" title="Correo del coordinador">
+                      {showDetailModal.req.coordinador_email}
+                    </span>
+                  )}
+                </div>
                 <span className={`status-badge status-${showDetailModal.req.estado}`}>
                   {showDetailModal.req.estado.charAt(0).toUpperCase() + showDetailModal.req.estado.slice(1)}
                 </span>

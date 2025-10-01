@@ -42,7 +42,6 @@ export async function GET() {
       // Obtener total de usuarios únicos de las tablas compras y coordinador
       let totalUsuarios = 0;
       try {
-        // Consulta para contar usuarios únicos entre compras y coordinador
         const countUsersQuery = `
           SELECT COUNT(DISTINCT correo) as total
           FROM (
@@ -137,18 +136,40 @@ export async function GET() {
         GROUP BY proceso
         ORDER BY cantidad DESC`;
 
-      // Obtener estadísticas por día
+      // CORREGIDO: Obtener estadísticas por mes usando DATE_FORMAT directamente
       const porDiaQuery = `
+        WITH RECURSIVE meses_del_anio AS (
+          SELECT 1 as mes
+          UNION ALL
+          SELECT mes + 1 FROM meses_del_anio WHERE mes < 12
+        ),
+        meses_con_datos AS (
+          SELECT 
+            YEAR(fecha_solicitud) as anio,
+            MONTH(fecha_solicitud) as mes_numero,
+            DATE_FORMAT(fecha_solicitud, '%M %Y') as mes_anio,
+            SUM(CASE WHEN estado = 'aprobada' THEN 1 ELSE 0 END) as aprobadas,
+            SUM(CASE WHEN estado = 'rechazada' THEN 1 ELSE 0 END) as rechazadas,
+            SUM(CASE WHEN estado = 'pendiente' OR estado = 'pendiente de aprobación' THEN 1 ELSE 0 END) as pendientes,
+            COUNT(*) as total
+          FROM requisicion
+          WHERE YEAR(fecha_solicitud) = 2025
+          GROUP BY YEAR(fecha_solicitud), MONTH(fecha_solicitud)
+        )
         SELECT 
-          DATE(fecha_solicitud) as fecha,
-          SUM(CASE WHEN estado = 'aprobada' THEN 1 ELSE 0 END) as aprobadas,
-          SUM(CASE WHEN estado = 'rechazada' THEN 1 ELSE 0 END) as rechazadas,
-          SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
-          COUNT(*) as total
-        FROM requisicion
-        WHERE fecha_solicitud >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-        GROUP BY DATE(fecha_solicitud)
-        ORDER BY fecha`;
+          CONCAT('2025-', LPAD(m.mes, 2, '0'), '-01') as fecha,
+          DATE_FORMAT(
+            CONCAT('2025-', LPAD(m.mes, 2, '0'), '-01'),
+            '%M %Y'
+          ) as mes_anio,
+          COALESCE(d.aprobadas, 0) as aprobadas,
+          COALESCE(d.rechazadas, 0) as rechazadas,
+          COALESCE(d.pendientes, 0) as pendientes,
+          COALESCE(d.total, 0) as total
+        FROM meses_del_anio m
+        LEFT JOIN meses_con_datos d ON m.mes = d.mes_numero AND d.anio = 2025
+        WHERE m.mes >= 1 AND m.mes <= 12
+        ORDER BY m.mes ASC`;
 
       // Ejecutar consultas de gráficos
       const [porEstado, porProceso, porDia] = await Promise.all([
@@ -165,6 +186,8 @@ export async function GET() {
           return [];
         })
       ]);
+
+      console.log('Datos por día:', porDia);
 
       // Formatear respuesta
       const responseData = {

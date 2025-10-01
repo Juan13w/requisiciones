@@ -1,42 +1,38 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Bar, Pie, Line } from "react-chartjs-2";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  ArcElement,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  ChartOptions,
-} from "chart.js";
+import React, { useState, useEffect, useRef } from "react";
+import * as Chart from "chart.js";
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  ArcElement,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-);
+// Registrar todos los componentes necesarios
+const { Chart: ChartJS, registerables } = Chart;
+if (registerables) {
+  ChartJS.register(...registerables);
+}
 
 interface Estado { estado: string; cantidad: number; porcentaje: number; }
 interface Proceso { proceso: string; cantidad: number; porcentaje: number; }
-interface Dia { fecha: string; aprobadas: number; rechazadas: number; pendientes: number; total: number; }
+interface Dia { 
+  fecha: string; 
+  mes_anio?: string;
+  aprobadas: number; 
+  rechazadas: number; 
+  pendientes: number; 
+  total: number; 
+}
 interface ChartDataResponse { porEstado: Estado[]; porProceso: Proceso[]; porDia: Dia[]; }
 
 export default function RequisitionCharts() {
   const [chartData, setChartData] = useState<ChartDataResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const barChartRef = useRef<HTMLCanvasElement>(null);
+  const lineChartRef = useRef<HTMLCanvasElement>(null);
+  const pieChartRef = useRef<HTMLCanvasElement>(null);
+  
+  const barChartInstance = useRef<Chart.Chart | null>(null);
+  const lineChartInstance = useRef<Chart.Chart | null>(null);
+  const pieChartInstance = useRef<Chart.Chart | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -54,114 +50,368 @@ export default function RequisitionCharts() {
     fetchStats();
   }, []);
 
+  useEffect(() => {
+    if (!chartData) return;
+
+    const { porEstado, porProceso, porDia } = chartData;
+
+    // Crear array de meses para 2025
+    const meses2025 = Array.from({ length: 12 }, (_, i) => {
+      const mes = i + 1;
+      return {
+        fecha: `2025-${String(mes).padStart(2, '0')}-01`,
+        mes_anio: new Date(2025, i, 1).toLocaleDateString('es-ES', { 
+          month: 'long', 
+          year: 'numeric' 
+        }),
+        aprobadas: 0,
+        rechazadas: 0,
+        pendientes: 0,
+        total: 0
+      };
+    });
+
+    // Combinar con datos reales de 2025 - CORREGIDO para zona horaria
+    const datosCompletos = meses2025.map(mes => {
+      const datosMes = porDia.find(d => {
+        // Extraer mes directamente del string YYYY-MM-DD sin parsear Date
+        const mesDato = parseInt(d.fecha.split('-')[1]);
+        const mesBuscado = parseInt(mes.fecha.split('-')[1]);
+        return mesDato === mesBuscado;
+      });
+      return datosMes || mes;
+    });
+
+    // Ordenar por fecha - CORREGIDO para evitar problemas de zona horaria
+    const datosOrdenados = [...datosCompletos].sort((a, b) => {
+      const [yearA, monthA] = a.fecha.split('-').map(Number);
+      const [yearB, monthB] = b.fecha.split('-').map(Number);
+      return yearA !== yearB ? yearA - yearB : monthA - monthB;
+    }).filter(item => item.fecha.startsWith('2025'));
+
+    // Destruir gráficos anteriores
+    if (barChartInstance.current) barChartInstance.current.destroy();
+    if (lineChartInstance.current) lineChartInstance.current.destroy();
+    if (pieChartInstance.current) pieChartInstance.current.destroy();
+
+    // Gráfico de barras apiladas
+    if (barChartRef.current) {
+      const ctx = barChartRef.current.getContext('2d');
+      if (ctx) {
+        barChartInstance.current = new ChartJS(ctx, {
+          type: 'bar',
+          data: {
+            labels: datosOrdenados.map(d => {
+              // Parsear la fecha manualmente para evitar problemas de zona horaria
+              const [year, month] = d.fecha.split('-').map(Number);
+              const mesesNombres = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
+              return `${mesesNombres[month - 1]} ${year}`;
+            }),
+            datasets: [
+              { 
+                label: "Aprobadas", 
+                data: datosOrdenados.map(d => d.aprobadas), 
+                backgroundColor: "#4CAF50",
+                borderRadius: 4,
+                barThickness: 20,
+                maxBarThickness: 25
+              },
+              { 
+                label: "Pendientes", 
+                data: datosOrdenados.map(d => d.pendientes), 
+                backgroundColor: "#2196F3",
+                borderRadius: 4,
+                barThickness: 20,
+                maxBarThickness: 25
+              },
+              { 
+                label: "Rechazadas", 
+                data: datosOrdenados.map(d => d.rechazadas), 
+                backgroundColor: "#F44336",
+                borderRadius: 4,
+                barThickness: 20,
+                maxBarThickness: 25
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+              legend: {
+                position: 'top',
+                align: 'center',
+                labels: {
+                  boxWidth: 12,
+                  padding: 15,
+                  usePointStyle: true,
+                  pointStyle: 'circle',
+                  font: {
+                    size: 12,
+                    weight: 'bold'
+                  }
+                }
+              },
+              title: { 
+                display: true, 
+                text: "ESTADÍSTICAS DE REQUISICIONES",
+                font: {
+                  size: 16,
+                  weight: 'bold'
+                },
+                padding: {
+                  bottom: 20
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                titleFont: {
+                  size: 13,
+                  weight: 'bold'
+                },
+                bodyFont: {
+                  size: 12
+                },
+                padding: 10,
+                displayColors: true,
+                usePointStyle: true,
+                callbacks: {
+                  label: function(context: any) {
+                    const label = context.dataset.label || '';
+                    const value = context.parsed.y;
+                    return ` ${label}: ${value} ${value === 1 ? 'requisición' : 'requisiciones'}`;
+                  },
+                  title: function(tooltipItems: any[]) {
+                    const dataIndex = tooltipItems[0].dataIndex;
+                    const [year, month] = datosOrdenados[dataIndex]?.fecha.split('-').map(Number) || [2025, 1];
+                    const mesesNombres = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+                    return `${mesesNombres[month - 1]} ${year}`.toUpperCase();
+                  }
+                }
+              }
+            },
+            scales: { 
+              x: { 
+                stacked: true,
+                grid: {
+                  display: false
+                },
+                ticks: {
+                  font: {
+                    size: 12
+                  }
+                },
+                title: {
+                  display: true,
+                  text: 'Meses',
+                  font: {
+                    weight: 'bold',
+                    size: 12
+                  }
+                }
+              }, 
+              y: { 
+                stacked: true,
+                beginAtZero: true,
+                grid: {
+                  color: 'rgba(0, 0, 0, 0.05)'
+                },
+                ticks: {
+                  stepSize: 1,
+                  precision: 0,
+                  font: {
+                    size: 11
+                  }
+                },
+                title: {
+                  display: true,
+                  text: 'Número de Requisiciones',
+                  font: {
+                    weight: 'bold',
+                    size: 12
+                  }
+                }
+              }
+            },
+            interaction: {
+              intersect: false,
+              mode: 'index'
+            }
+          }
+        });
+      }
+    }
+
+    // Gráfico de línea
+    if (lineChartRef.current) {
+      const ctx = lineChartRef.current.getContext('2d');
+      if (ctx) {
+        lineChartInstance.current = new ChartJS(ctx, {
+          type: 'line',
+          data: {
+            labels: datosOrdenados.map(d => {
+              // Parsear la fecha manualmente para evitar problemas de zona horaria
+              const [year, month] = d.fecha.split('-').map(Number);
+              const mesesNombres = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
+              return `${mesesNombres[month - 1]} ${year}`;
+            }),
+            datasets: [{
+              label: "Total de Requisiciones",
+              data: datosOrdenados.map(d => d.total),
+              borderColor: "#3F51B5",
+              backgroundColor: "rgba(63, 81, 181, 0.1)",
+              tension: 0.3,
+              fill: true,
+              pointBackgroundColor: '#3F51B5',
+              pointBorderColor: '#fff',
+              pointHoverRadius: 5,
+              pointHoverBackgroundColor: '#3F51B5',
+              pointHoverBorderColor: '#fff',
+              pointHitRadius: 10,
+              pointBorderWidth: 2,
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+              title: { 
+                display: true, 
+                text: "Tendencia Mensual de Requisiciones",
+                font: {
+                  size: 14,
+                  weight: 'bold'
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  title: function(tooltipItems: any[]) {
+                    const dataIndex = tooltipItems[0].dataIndex;
+                    const [year, month] = datosOrdenados[dataIndex]?.fecha.split('-').map(Number) || [2025, 1];
+                    const mesesNombres = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+                    return `${mesesNombres[month - 1]} ${year}`.toUpperCase();
+                  }
+                }
+              }
+            },
+            scales: { 
+              y: { 
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: 'Cantidad de Requisiciones'
+                }
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: 'Mes'
+                }
+              }
+            },
+          }
+        });
+      }
+    }
+
+    // Gráfico de pastel
+    if (pieChartRef.current && porProceso.length > 0) {
+      const ctx = pieChartRef.current.getContext('2d');
+      if (ctx) {
+        pieChartInstance.current = new ChartJS(ctx, {
+          type: 'pie',
+          data: {
+            labels: porProceso.map(p => p.proceso),
+            datasets: [{
+              data: porProceso.map(p => p.cantidad),
+              backgroundColor: ["#4CAF50","#2196F3","#FFC107","#9C27B0","#607D8B","#FF5722","#00BCD4"].slice(0, porProceso.length),
+              borderWidth: 1,
+              borderColor: '#fff'
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+              title: { 
+                display: true, 
+                text: "Distribución por Proceso",
+                font: {
+                  size: 14,
+                  weight: 'bold'
+                }
+              }, 
+              legend: { 
+                position: "right" 
+              } 
+            },
+          }
+        });
+      }
+    }
+
+    return () => {
+      if (barChartInstance.current) barChartInstance.current.destroy();
+      if (lineChartInstance.current) lineChartInstance.current.destroy();
+      if (pieChartInstance.current) pieChartInstance.current.destroy();
+    };
+  }, [chartData]);
+
   if (loading) return <div className="p-4 text-center">Cargando estadísticas...</div>;
   if (error) return <div className="p-4 text-center text-red-500">Error: {error}</div>;
   if (!chartData) return <div className="p-4 text-center">No hay datos disponibles.</div>;
 
-  const { porEstado, porProceso, porDia } = chartData;
-
-  // --- Datos para gráficos ---
-  const barData = {
-    labels: porDia.map(d => new Date(d.fecha).toLocaleDateString('es-ES', { weekday: 'short' })),
-    datasets: [
-      { label: "Aprobadas", data: porDia.map(d => d.aprobadas), backgroundColor: "#4CAF50" },
-      { label: "Rechazadas", data: porDia.map(d => d.rechazadas), backgroundColor: "#F44336" },
-      { label: "Pendientes", data: porDia.map(d => d.pendientes), backgroundColor: "#FFC107" },
-    ],
-  };
-
-  const barOptions: ChartOptions<"bar"> = {
-    responsive: true,
-    plugins: { title: { display: true, text: "Requisiciones por Día y Estado" } },
-    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
-  };
-
-  const pieData = {
-    labels: porProceso.map(p => p.proceso),
-    datasets: [{
-      data: porProceso.map(p => p.cantidad),
-      backgroundColor: ["#4CAF50","#2196F3","#FFC107","#9C27B0","#607D8B","#FF5722","#00BCD4"].slice(0, porProceso.length),
-      borderWidth: 1, borderColor: '#fff'
-    }],
-  };
-
-  const pieOptions: ChartOptions<"pie"> = {
-    responsive: true,
-    plugins: { title: { display: true, text: "Distribución por Proceso" }, legend: { position: "right" } },
-  };
-
-  const lineData = {
-    labels: porDia.map(d => new Date(d.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })),
-    datasets: [{
-      label: "Total de Requisiciones",
-      data: porDia.map(d => d.total),
-      borderColor: "#3F51B5",
-      backgroundColor: "rgba(63, 81, 181, 0.1)",
-      tension: 0.3,
-      fill: true
-    }],
-  };
-
-  const lineOptions: ChartOptions<"line"> = {
-    responsive: true,
-    plugins: { title: { display: true, text: "Tendencia de Requisiciones" } },
-    scales: { y: { beginAtZero: true } },
-  };
-
-  // --- Resumen de procesos ---
-  const resumenProcesos = [...porProceso];
-  const processColors = porProceso.reduce((acc, proc, index) => {
-    const colors = ["#4CAF50","#2196F3","#FFC107","#9C27B0","#607D8B","#FF5722","#00BCD4"];
-    return { ...acc, [proc.proceso]: colors[index % colors.length] };
-  }, {} as Record<string, string>);
+  const { porProceso } = chartData;
 
   return (
-    <div className="w-full p-4">
-      <h2 className="text-lg font-semibold mb-4 text-gray-800">Estadísticas de Requisiciones</h2>
-
-      <div className="charts-container grid md:grid-cols-2 gap-6">
-        <div className="chart-card bg-white p-4 rounded-lg shadow">
-          <h3 className="font-semibold mb-2">Distribución por Proceso</h3>
-          <Pie data={pieData} options={pieOptions} />
-        </div>
-
-        <div className="chart-card bg-white p-4 rounded-lg shadow">
-          <h3 className="font-semibold mb-2">Tendencia de Requisiciones</h3>
-          <Line data={lineData} options={lineOptions} />
-        </div>
-
-        <div className="chart-card bg-white p-4 rounded-lg shadow md:col-span-2">
-          <h3 className="font-semibold mb-2">Requisiciones por Día y Estado</h3>
-          <Bar data={barData} options={barOptions} />
+    <div className="space-y-8">
+      {/* Gráfica de barras */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <div style={{ height: '400px' }}>
+          <canvas ref={barChartRef}></canvas>
         </div>
       </div>
 
-      {/* ---- Cuadro de Resumen Estilizado ---- */}
-      <div className="resumen-procesos">
-        <div className="resumen-procesos-header">
-          <h3>Resumen de Procesos</h3>
+      {/* Otras gráficas */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div style={{ height: '300px' }}>
+            <canvas ref={lineChartRef}></canvas>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div style={{ height: '300px' }}>
+            <canvas ref={pieChartRef}></canvas>
+          </div>
+        </div>
+      </div>
+
+      {/* Cuadro de Resumen */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <div className="border-b pb-4 mb-4">
+          <h3 className="text-lg font-bold">Resumen de Procesos</h3>
         </div>
         
-        <div>
-          {resumenProcesos.map((item, index) => (
-            <div key={index} className="resumen-procesos-item">
-              <div className="resumen-procesos-item-left">
-                <svg className="resumen-procesos-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <div className="space-y-2">
+          {porProceso.map((item, index) => (
+            <div key={index} className="flex items-center justify-between py-3 border-b last:border-b-0">
+              <div className="flex items-center gap-3">
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                 </svg>
-                <span className="resumen-procesos-item-text">{item.proceso}</span>
+                <span className="font-medium">{item.proceso}</span>
               </div>
-              <div className="resumen-procesos-item-right">
-                <span className="resumen-procesos-item-count">{item.cantidad}</span>
-                <span className="resumen-procesos-item-percent">({item.porcentaje}%)</span>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-lg">{item.cantidad}</span>
+                <span className="text-gray-500">({item.porcentaje}%)</span>
               </div>
             </div>
           ))}
           
-          <div className="resumen-procesos-total">
-            <span className="resumen-procesos-total-text">Total</span>
-            <span className="resumen-procesos-total-count">
-              {resumenProcesos.reduce((sum, item) => sum + item.cantidad, 0)} solicitudes
+          <div className="flex items-center justify-between pt-4 mt-4 border-t-2 font-bold">
+            <span>Total</span>
+            <span>
+              {porProceso.reduce((sum, item) => sum + item.cantidad, 0)} solicitudes
             </span>
           </div>
         </div>
