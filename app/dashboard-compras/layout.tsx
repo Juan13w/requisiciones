@@ -5,12 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShoppingCart, LogOut } from 'lucide-react';
 import StyleProvider from '@/components/StyleProvider';
-import './dashboard-styles.css';
 
 // Importar estilos globales
 import '@/styles/ComprasDashboard.css';
-import '@/styles/RequisitionDetails.css';
-import '@/styles/charts.css';
 
 export default function DashboardLayout({
   children,
