@@ -2,7 +2,11 @@ import type { Metadata } from 'next'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import { Footer } from '@/components/Footer'
+import StyleLoader from '@/components/StyleLoader'
 import './globals.css'
+import '../styles/ComprasDashboard.css'
+import '../styles/RequisitionDetails.css'
+import '../styles/charts.css'
 
 //VERSION 1 FINALIZADA
 
@@ -29,6 +33,7 @@ html {
         `}</style>
       </head>
       <body className="flex flex-col min-h-screen">
+        <StyleLoader />
         <main className="flex-grow">
           {children}
         </main>

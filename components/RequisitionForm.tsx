@@ -7,19 +7,20 @@ import type { Requisition } from "@/types/requisition"
 import { AutoCompleteInput } from "./ui/AutoCompleteInput"
 
 // Definir un tipo para los datos del formulario que incluye el estado como opcional
-type RequisitionFormData = Omit<Requisition, "id" | "fechaCreacion">;
+type RequisitionFormData = Omit<Requisition, "id" | "fechaCreacion" | "fechaUltimaModificacion" | "fechaUltimoRechazo" | "intentosRevision"> & {
+  imagenes: string[];
+  comentarioRechazo?: string;
+};
 
 interface RequisitionFormProps {
-  onSave: (requisition: RequisitionFormData) => void
-  onCancel: () => void
-  initialData?: RequisitionFormData & {
-    estado?: 'pendiente' | 'aprobada' | 'rechazada' | 'correccion';
-  };
+  onSave: (requisition: RequisitionFormData) => void;
+  onCancel: () => void;
+  initialData?: RequisitionFormData;
 }
 
 export default function RequisitionForm({ onSave, onCancel, initialData }: RequisitionFormProps) {
-  const [formData, setFormData] = useState<RequisitionFormData & { estado?: string }>(
-    initialData ? { ...initialData, estado: initialData.estado } : {
+  const [formData, setFormData] = useState<RequisitionFormData>(() => {
+    const defaultData: RequisitionFormData = {
       consecutivo: "",
       empresa: "",
       fechaSolicitud: new Date().toISOString().split("T")[0],
@@ -31,8 +32,10 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
       imagenes: [],
       comentarioRechazo: "",
       estado: 'pendiente',
-    },
-  )
+    };
+    
+    return initialData ? { ...defaultData, ...initialData } : defaultData;
+  });
 
   // Lista de empresas disponibles
   const empresasDisponibles = ["soluciones", "emtra", "otra_empresa"]; // Ajusta según tus necesidades
@@ -97,37 +100,51 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
 
 
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return
+    if (!e.target.files || e.target.files.length === 0) return;
 
-    const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
-    const files = Array.from(e.target.files)
+    const MAX_FILE_SIZE = 800 * 1024; // 800KB
+    const files = Array.from(e.target.files);
 
-    // Validate file size
-    const oversizedFiles = files.filter((file) => file.size > MAX_FILE_SIZE)
-    if (oversizedFiles.length > 0) {
-      alert(`Algunos archivos superan el tamaño máximo de 5MB`)
-      return
+    // Validate file type
+    const invalidFiles = files.filter((file) => file.type !== 'application/pdf');
+    if (invalidFiles.length > 0) {
+      alert('Solo se permiten archivos en formato PDF');
+      return;
     }
 
-    const imagePromises = files.map((file) => {
+    // Validate file size
+    const oversizedFiles = files.filter((file) => file.size > MAX_FILE_SIZE);
+    if (oversizedFiles.length > 0) {
+      alert('Algunos archivos superan el tamaño máximo de 800KB');
+      return;
+    }
+
+    const filePromises = files.map((file) => {
       return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = (error) => reject(error)
-        reader.readAsDataURL(file)
-      })
-    })
-    Promise.all(imagePromises)
-      .then((images) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            resolve(event.target.result as string);
+          } else {
+            reject(new Error('Error al leer el archivo'));
+          }
+        };
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(file);
+      });
+    });
+    
+    Promise.all(filePromises)
+      .then((newFiles) => {
         setFormData((prev) => ({
           ...prev,
-          imagenes: [...prev.imagenes, ...images],
-        }))
+          imagenes: [...prev.imagenes, ...newFiles],
+        }));
       })
       .catch((error) => {
-        console.error("Error al cargar las imágenes:", error)
-        alert("Error al cargar una o más imágenes")
-      })
+        console.error('Error al cargar los archivos:', error);
+        alert('Error al cargar uno o más archivos');
+      });
   }
 
   // Manejador para enviar el formulario
@@ -175,14 +192,16 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
   return (
     <div className="requisition-form-container fade-in">
       <div className="form-header">
-        <h2 className="form-title">{initialData ? "✏️ Editar Requisición" : "📝 Nueva Requisición"}</h2>
+        <h2 className="form-title">
+          {initialData ? "✏️ Editar Requisición" : "📝 Nueva Requisición"}
+        </h2>
         <p className="form-subtitle">
           {initialData
             ? "Actualiza los datos de la requisición"
             : "Completa el formulario para crear una nueva requisición"}
         </p>
       </div>
-
+  
       <div className="form-content">
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
@@ -198,10 +217,10 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
                 placeholder="Ej: REQ-2023-001"
               />
             </div>
-
+  
             <div className="form-field">
               <label className="form-label">Empresa</label>
-              {formData.empresa && formData.empresa.toLowerCase() !== 'multiple' ? (
+              {formData.empresa && formData.empresa.toLowerCase() !== "multiple" ? (
                 <input
                   type="text"
                   name="empresa"
@@ -227,7 +246,7 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
                 </select>
               )}
             </div>
-
+  
             <div className="form-field">
               <label className="form-label">Fecha de Solicitud</label>
               <input
@@ -239,14 +258,14 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
                 required
               />
             </div>
-
+  
             {/* Campo oculto para el nombre del solicitante */}
             <input
               type="hidden"
               name="nombreSolicitante"
               value={formData.nombreSolicitante}
             />
-
+  
             <div className="form-field">
               <label className="form-label">Proceso</label>
               <input
@@ -259,7 +278,7 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
                 placeholder="Proceso al que pertenece la requisición"
               />
             </div>
-
+  
             <div className="form-field">
               <label className="form-label">Justificación</label>
               <textarea
@@ -271,7 +290,7 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
                 placeholder="Describe la justificación de esta requisición"
               />
             </div>
-
+  
             <div className="form-field full-width">
               <label className="form-label">Descripción</label>
               <textarea
@@ -284,23 +303,26 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
               />
             </div>
           </div>
-          
-          {/* Mostrar comentario de rechazo si existe y la requisición está en estado de corrección o rechazada */}
+  
+          {/* Comentario de rechazo */}
           {(() => {
-            // Determinar el estado actual de la requisición
             const estadoActual = formData.estado || initialData?.estado;
-            const comentarioRechazo = formData.comentarioRechazo || initialData?.comentarioRechazo;
-            
-            // Solo mostrar si hay un comentario de rechazo y el estado es de corrección o rechazada
-            if (comentarioRechazo && (estadoActual === 'correccion' || estadoActual === 'rechazada')) {
+            const comentarioRechazo =
+              formData.comentarioRechazo || initialData?.comentarioRechazo;
+  
+            if (
+              comentarioRechazo &&
+              (estadoActual === "correccion" || estadoActual === "rechazada")
+            ) {
               return (
                 <div className="mt-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r">
                   <div className="flex items-start">
-                    <div className="flex-shrink-0 pt-0.5">
-                    </div>
+                    <div className="flex-shrink-0 pt-0.5"></div>
                     <div className="ml-3">
                       <h3 className="text-sm font-medium text-red-800">
-                        {estadoActual === 'correccion' ? 'Se requiere corrección' : 'Comentario de Rechazo'}
+                        {estadoActual === "correccion"
+                          ? "Se requiere corrección"
+                          : "Comentario de Rechazo"}
                       </h3>
                       <div className="mt-2 text-sm text-red-700">
                         <p>{comentarioRechazo}</p>
@@ -312,72 +334,161 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
             }
             return null;
           })()}
-
+  
           <div className="images-section">
             <label className="form-label">Imágenes Adjuntas</label>
-            
+  
             <div className="upload-container">
               <div className="upload-area">
                 <input
                   type="file"
                   ref={fileInputRef}
                   onChange={handleImageUpload}
-                  accept="image/*"
                   multiple
-                  className="file-input"
+                  accept=".pdf,application/pdf"
+                  className="hidden"
                   id="file-upload"
                 />
                 <label htmlFor="file-upload" className="upload-label">
                   <div className="upload-content">
-                    <svg className="upload-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M19 13V19H5V13H3V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V13H19ZM13 5.83L15.59 8.41L17 7L12 2L7 7L8.41 8.41L11 5.83V15H13V5.83Z" fill="#4F46E5"/>
+                    <svg
+                      className="upload-icon"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z"
+                        fill="#3B82F6"
+                      />
+                      <path d="M14 2V8H20" fill="#93C5FD" />
+                      <path
+                        d="M16 13H8V11H16V13ZM16 17H8V15H16V17ZM13 9H8V7H13V9Z"
+                        fill="white"
+                      />
                     </svg>
-                    <div className="upload-text">
-                      <span className="upload-title">Subir imagenes</span>
-                    
-                    </div>
+                    <span>Haz clic o arrastra archivos PDF aquí</span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Tamaño máximo por archivo: 800KB
+                    </p>
                   </div>
                 </label>
-               </div>
-              
-              {formData.imagenes.length > 0 && (
-                <div className="uploaded-images">
-                  <h4 className="uploaded-files-title">Imágenes adjuntas</h4>
-                  <div className="image-thumbnails">
-                    {formData.imagenes.map((img, index) => (
-                      <div key={index} className="image-thumbnail">
-                        <img 
-                          src={img} 
-                          alt={`Imagen ${index + 1}`}
-                          className="thumbnail"
-                          onClick={() => window.open(img, '_blank')}
-                        />
-                        <button 
-                          type="button" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeImage(index);
-                          }}
-                          className="remove-thumbnail"
-                          title="Eliminar imagen"
+  
+                {formData.imagenes.length > 0 && (
+                  <div className="file-previews mt-4">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">
+                      Archivos cargados:
+                    </h4>
+                    <div className="space-y-2">
+                      {formData.imagenes.map((file, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="white"/>
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex items-center space-x-2">
+                            <svg
+                              className="w-5 h-5 text-red-500"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                              />
+                            </svg>
+                            <span className="text-sm text-gray-700">
+                              Documento {index + 1}.pdf
+                            </span>
+                          </div>
+                          <div className="flex space-x-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                // Create a blob URL for the PDF
+                                const pdfWindow = window.open('', '_blank');
+                                if (pdfWindow) {
+                                  const iframe = document.createElement('iframe');
+                                  iframe.style.width = '100%';
+                                  iframe.style.height = '100%';
+                                  iframe.src = file;
+                                  
+                                  const html = `
+                                    <!DOCTYPE html>
+                                    <html>
+                                    <head>
+                                      <title>Vista previa del PDF</title>
+                                      <style>
+                                        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+                                        iframe { width: 100%; height: 100%; border: none; }
+                                      </style>
+                                    </head>
+                                    <body>
+                                      <iframe src="${file}" type="application/pdf">
+                                        <p>Tu navegador no soporta la visualización de PDFs. <a href="${file}">Descarga el PDF</a>.</p>
+                                      </iframe>
+                                    </body>
+                                    </html>
+                                  `;
+                                  
+                                  pdfWindow.document.open();
+                                  pdfWindow.document.write(html);
+                                  pdfWindow.document.close();
+                                }
+                              }}
+                              className="text-blue-600 hover:text-blue-800 text-sm font-medium mr-2 px-3 py-1 border border-blue-600 rounded hover:bg-blue-50 transition-colors"
+                              title="Ver documento"
+                            >
+                              Ver
+                            </button>
+                            <a
+                              href={file}
+                              download={`documento-${index + 1}.pdf`}
+                              className="text-green-600 hover:text-green-800 text-sm font-medium mr-2 px-3 py-1 border border-green-600 rounded hover:bg-green-50 transition-colors"
+                              title="Descargar documento"
+                            >
+                              Descargar
+                            </a>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeImage(index);
+                              }}
+                              className="text-red-600 hover:text-red-800 text-sm font-medium"
+                              title="Eliminar documento"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
-
+  
           <div className="form-actions">
-            <button type="button" onClick={onCancel} className="form-button cancel" disabled={isSubmitting}>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="form-button cancel"
+              disabled={isSubmitting}
+            >
               Cancelar
             </button>
-            <button type="submit" className="form-button submit" disabled={isSubmitting}>
+  
+            <button
+              type="submit"
+              className="form-button submit"
+              disabled={isSubmitting}
+            >
               {isSubmitting ? (
                 <>
                   <div className="loading-spinner"></div>
@@ -385,8 +496,18 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
                 </>
               ) : (
                 <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
                   </svg>
                   {initialData ? "Actualizar" : "Guardar"}
                 </>
@@ -396,5 +517,7 @@ export default function RequisitionForm({ onSave, onCancel, initialData }: Requi
         </form>
       </div>
     </div>
-  )
+  );
 }
+
+

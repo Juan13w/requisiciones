@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from 'react';
 import {
@@ -19,9 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import RequisitionCharts from '@/components/charts/RequisitionCharts';
-import '@/styles/ComprasDashboard.css';
-import '@/styles/RequisitionDetails.css';
-import '@/styles/charts.css';
+// Los estilos se cargan a través de la configuración global en layout.tsx
 
 type Estado = 'pendiente' | 'aprobada' | 'rechazada' | 'correccion' | 'cerrada';
 
@@ -1161,39 +1159,116 @@ case 'correccion':
 
               {showDetailModal.req.imagenes && showDetailModal.req.imagenes.length > 0 ? (
                 <div className="detail-item-full">
-                  <label>Imágenes adjuntas:</label>
-                  <div className="image-thumbnails">
-                    {showDetailModal.req.imagenes.map((img, index) => {
-                      const imageSrc = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
+                  <label>Archivos adjuntos</label>
+                  <div className="file-previews space-y-3">
+                    {showDetailModal.req.imagenes.map((file, index) => {
+                      const isPDF = file.startsWith('data:application/pdf') || 
+                                  file.includes('application/pdf') ||
+                                  (file.includes('JVBERi0') && file.includes('Qk0'));
+                      const imageSrc = file.startsWith('data:') ? file : `data:image/jpeg;base64,${file}`;
+                      
                       return (
-                        <div key={index} className="image-thumbnail">
-                          <img 
-                            src={imageSrc} 
-                            alt={`Imagen ${index + 1}`}
-                            className="thumbnail"
-                            style={{ maxWidth: '100%', maxHeight: '200px', cursor: 'pointer' }}
-                            onClick={() => {
-                              const newWindow = window.open('', '_blank');
-                              if (newWindow) {
-                                newWindow.document.write(`
-                                  <!DOCTYPE html>
-                                  <html>
-                                    <head>
-                                      <title>Imagen ${index + 1}</title>
-                                      <style>
-                                        body { margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f5f5f5; }
-                                        img { max-width: 90%; max-height: 90vh; object-fit: contain; }
-                                      </style>
-                                    </head>
-                                    <body>
-                                      <img src="${imageSrc}" alt="Imagen ampliada" />
-                                    </body>
-                                  </html>
-                                `);
-                                newWindow.document.close();
-                              }
-                            }}
-                          />
+                        <div key={index} className="file-item p-3 border rounded-lg bg-white shadow-sm">
+                          <div className="file-item-header flex items-center gap-3 mb-2">
+                            <div className={`file-icon ${isPDF ? 'text-red-500' : 'text-blue-500'}`}>
+                              {isPDF ? (
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                </svg>
+                              ) : (
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="file-info">
+                              <span className="file-name font-medium block">
+                                {isPDF ? `Documento ${index + 1}.pdf` : `Imagen ${index + 1}.jpg`}
+                              </span>
+                              <span className="file-type text-sm text-gray-500">
+                                {isPDF ? 'Archivo PDF' : 'Archivo de imagen'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="file-actions flex justify-end gap-2 mt-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isPDF) {
+                                  const pdfWindow = window.open("", "_blank");
+                                  if (pdfWindow) {
+                                    const html = `
+                                      <!DOCTYPE html>
+                                      <html>
+                                        <head>
+                                          <title>Vista previa del PDF</title>
+                                          <style>
+                                            body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+                                            iframe { width: 100%; height: 100%; border: none; }
+                                          </style>
+                                        </head>
+                                        <body>
+                                          <iframe src="${file}" type="application/pdf">
+                                            <p>Tu navegador no soporta la visualización de PDFs. 
+                                            <a href="${file}">Descarga el PDF</a>.</p>
+                                          </iframe>
+                                        </body>
+                                      </html>
+                                    `;
+                                    pdfWindow.document.open();
+                                    pdfWindow.document.write(html);
+                                    pdfWindow.document.close();
+                                  }
+                                } else {
+                                  const imgWindow = window.open('', '_blank');
+                                  if (imgWindow) {
+                                    imgWindow.document.write(`
+                                      <!DOCTYPE html>
+                                      <html>
+                                        <head>
+                                          <title>Imagen ${index + 1}</title>
+                                          <style>
+                                            body { 
+                                              margin: 0; 
+                                              padding: 20px; 
+                                              display: flex; 
+                                              justify-content: center; 
+                                              align-items: center; 
+                                              height: 100vh; 
+                                              background-color: #f5f5f5; 
+                                            }
+                                            img { 
+                                              max-width: 90%; 
+                                              max-height: 90vh; 
+                                              object-fit: contain; 
+                                              box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+                                              border-radius: 0.5rem;
+                                            }
+                                          </style>
+                                        </head>
+                                        <body>
+                                          <img src="${imageSrc}" alt="Imagen ampliada" />
+                                        </body>
+                                      </html>
+                                    `);
+                                    imgWindow.document.close();
+                                  }
+                                }
+                              }}
+                              className="px-3 py-1.5 text-sm font-medium text-blue-600 bg-white border border-blue-600 rounded-md hover:bg-blue-50 transition-colors"
+                            >
+                              {isPDF ? 'Ver PDF' : 'Ver imagen'}
+                            </button>
+
+                            <a
+                              href={file}
+                              download={`${isPDF ? 'Documento' : 'Imagen'}_${(showDetailModal.req?.consecutivo || 'sin-numero').toString().replace(/[^a-zA-Z0-9-_]/g, '')}_${index + 1}${isPDF ? '.pdf' : file.includes('image/') ? '.jpg' : file.includes('application/') ? '.bin' : '.dat'}`}
+                              className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                            >
+                              Descargar
+                            </a>
+                          </div>
                         </div>
                       );
                     })}
@@ -1201,8 +1276,8 @@ case 'correccion':
                 </div>
               ) : (
                 <div className="detail-item-full">
-                  <label>Imágenes adjuntas:</label>
-                  <p>No hay imágenes adjuntas</p>
+                  <label>Archivos adjuntos</label>
+                  <p className="text-gray-500">No hay documentos adjuntos</p>
                 </div>
               )}
             </div>

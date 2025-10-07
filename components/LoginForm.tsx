@@ -42,7 +42,17 @@ const LoginForm = ({ isOpen, onClose, onLogin }: LoginFormProps) => {
         throw new Error(data.error || "Error en la autenticación")
       }
       
-      onLogin(data.user)
+      // Guardar datos del usuario en sessionStorage
+      if (data.user) {
+        sessionStorage.setItem('user', JSON.stringify(data.user));
+        // Llamar a onLogin para manejar la redirección
+        onLogin(data.user);
+        
+        // Forzar recarga después de un breve retraso para asegurar que la redirección se complete
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
+      }
     } catch (err: any) {
       setError(err.message || "Error al iniciar sesión")
     } finally {

@@ -5,53 +5,54 @@ import { enviarNotificacionRequisicion } from '@/services/emailService';
 export async function POST(request: Request) {
   try {
     const formData = await request.json();
-    
+
     // Validar datos requeridos
-    if (!formData.consecutivo || !formData.empresa || !formData.nombreSolicitante || 
-        !formData.proceso || !formData.justificacion || !formData.descripcion || 
-        typeof formData.cantidad === 'undefined') {
+    if (
+      !formData.consecutivo || !formData.empresa || !formData.nombreSolicitante ||
+      !formData.proceso || !formData.justificacion || !formData.descripcion ||
+      typeof formData.cantidad === 'undefined'
+    ) {
       return NextResponse.json(
         { error: 'Faltan campos requeridos' },
         { status: 400 }
       );
     }
 
-    // Convertir la imagen de base64 a Buffer si existe
-    const imagenBuffer = formData.imagenes && formData.imagenes.length > 0 
+    // Convertir el PDF de base64 a Buffer si existe
+    const pdfBuffer = formData.imagenes && formData.imagenes.length > 0
       ? Buffer.from(formData.imagenes[0].split(',')[1], 'base64')
       : null;
 
-    // Asegurarse de que el consecutivo sea una cadena
+    // Asegurar que el consecutivo sea texto
     const consecutivo = formData.consecutivo?.toString() || '';
-    
-    // Obtener los datos del usuario desde el formulario
+
+    // Datos del usuario que crea la requisición
     let usuarioData = null;
     let coordinadorId = null;
     let nombreSolicitante = '';
 
     if (formData.usuarioData) {
-      // Si usuarioData es un string, lo parseamos, si ya es un objeto, lo usamos directamente
-      usuarioData = typeof formData.usuarioData === 'string' 
-        ? JSON.parse(formData.usuarioData) 
+      usuarioData = typeof formData.usuarioData === 'string'
+        ? JSON.parse(formData.usuarioData)
         : formData.usuarioData;
-      
+
       coordinadorId = usuarioData.coordinador_id || usuarioData.id;
       nombreSolicitante = usuarioData.email || '';
     }
-    
+
     if (!coordinadorId) {
       return NextResponse.json(
         { error: 'No se pudo identificar al coordinador' },
         { status: 400 }
       );
     }
-    
-    console.log('Creando requisición para el coordinador ID:', coordinadorId, 'Nombre:', nombreSolicitante);
+
+    console.log('📦 Creando requisición para coordinador ID:', coordinadorId);
 
     // Insertar en la base de datos
     const [result] = await pool.execute(
       `INSERT INTO requisicion 
-       (consecutivo, empresa, fecha_solicitud, nombre_solicitante, proceso, justificacion, descripcion, cantidad, img, coordinador_id)
+       (consecutivo, empresa, fecha_solicitud, nombre_solicitante, proceso, justificacion, descripcion, cantidad, pdf, coordinador_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         consecutivo,
@@ -62,20 +63,19 @@ export async function POST(request: Request) {
         formData.justificacion || '',
         formData.descripcion || '',
         Number(formData.cantidad) || 1,
-        imagenBuffer,
+        pdfBuffer,
         coordinadorId
       ]
-    ) as any; // Usamos 'as any' temporalmente para evitar el error de tipo
+    ) as any;
 
-    // Obtener el ID insertado de forma confiable
-    let insertId: number | null = (result && (result as any).insertId) ? (result as any).insertId : null;
+    // Obtener ID insertado
+    let insertId: number | null = result?.insertId || null;
     if (!insertId) {
-      // Fallback a LAST_INSERT_ID() solo si es necesario
       const [rows] = await pool.query('SELECT LAST_INSERT_ID() as id');
       insertId = Array.isArray(rows) && rows[0] ? (rows[0] as any).id : null;
     }
 
-    // Registrar historial de creación
+    // Registrar historial
     try {
       const estadoInicial = formData.estado || 'pendiente';
       const comentarioInicial = 'Requisición creada';
@@ -84,13 +84,12 @@ export async function POST(request: Request) {
         [insertId, estadoInicial, comentarioInicial, nombreSolicitante || null]
       );
     } catch (histErr) {
-      console.warn('No se pudo registrar historial de creación:', histErr);
+      console.warn('⚠️ No se pudo registrar historial:', histErr);
     }
 
-    // Enviar notificación por correo electrónico
+    // Enviar notificación (opcional)
     if (process.env.NOTIFICATION_EMAIL) {
       try {
-        // Obtener más detalles de la requisición para el correo
         const [requisicion] = await pool.query(
           'SELECT * FROM requisicion WHERE requisicion_id = ?',
           [insertId]
@@ -98,8 +97,7 @@ export async function POST(request: Request) {
 
         if (requisicion && requisicion.length > 0) {
           const reqData = requisicion[0];
-          
-          // Enviar notificación por correo electrónico
+
           await enviarNotificacionRequisicion(process.env.NOTIFICATION_EMAIL, {
             titulo: `Requisición ${reqData.consecutivo}`,
             descripcion: reqData.descripcion || 'Sin descripción adicional',
@@ -108,18 +106,13 @@ export async function POST(request: Request) {
           });
         }
       } catch (emailError) {
-        console.error('Error al enviar notificación por correo:', emailError);
-        // No fallamos la petición si hay un error al enviar el correo
+        console.error('Error al enviar correo:', emailError);
       }
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      id: insertId 
-    });
-
+    return NextResponse.json({ success: true, id: insertId });
   } catch (error) {
-    console.error('Error al guardar la requisición:', error);
+    console.error('❌ Error al guardar requisición:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor al guardar la requisición' },
       { status: 500 }
@@ -138,7 +131,7 @@ export async function GET(request: Request) {
       FROM requisicion r
       LEFT JOIN coordinador c ON r.coordinador_id = c.coordinador_id
     `;
-    const params = [];
+    const params: any[] = [];
 
     if (coordinadorId) {
       query += ' WHERE r.coordinador_id = ?';
@@ -148,23 +141,23 @@ export async function GET(request: Request) {
     query += ' ORDER BY requisicion_id DESC';
 
     const [rows] = await pool.query(query, params);
-    
-    // Mapear los resultados de la base de datos al formato esperado
+
     const requisitions = (rows as any[]).map(row => {
-      // Convertir el buffer de la imagen a una URL de datos si existe
       let imagenes: string[] = [];
-      if (row.img && row.img.length > 0) {
-        // Determinar el tipo de imagen (asumimos jpg por defecto)
-        const mimeType = 'image/jpeg'; // o podrías detectar el tipo real si lo tienes almacenado
-        const base64Image = row.img.toString('base64');
-        imagenes = [`data:${mimeType};base64,${base64Image}`];
+
+      // Si existe un archivo PDF en el campo pdf
+      if (row.pdf && row.pdf.length > 0) {
+        const isPDF =
+          row.pdf[0] === 0x25 && row.pdf[1] === 0x50 && row.pdf[2] === 0x44 && row.pdf[3] === 0x46; // %PDF
+        const mimeType = isPDF ? 'application/pdf' : 'image/jpeg';
+        const base64File = row.pdf.toString('base64');
+        imagenes = [`data:${mimeType};base64,${base64File}`];
       }
 
-      // Usar la fecha exacta de la base de datos
-      const fechaSolicitud = row.fecha_solicitud 
+      const fechaSolicitud = row.fecha_solicitud
         ? new Date(row.fecha_solicitud).toISOString()
         : new Date().toISOString();
-      
+
       return {
         id: row.requisicion_id.toString(),
         requisicion_id: row.requisicion_id,
@@ -177,19 +170,19 @@ export async function GET(request: Request) {
         descripcion: row.descripcion || '',
         cantidad: Number(row.cantidad) || 1,
         imagenes: imagenes,
-        estado: row.estado || 'pendiente', // Asegurar que siempre haya un estado
-        comentarioRechazo: row.comentarioRechazo || row.comentario_rechazo || '', // Incluir el comentario de rechazo
-        fechaCreacion: row.fecha_creacion 
-          ? new Date(row.fecha_creacion).getTime() 
-          : (row.fecha_solicitud 
-              ? new Date(row.fecha_solicitud).getTime() 
-              : Date.now())
+        estado: row.estado || 'pendiente',
+        comentarioRechazo: row.comentarioRechazo || row.comentario_rechazo || '',
+        fechaCreacion: row.fecha_creacion
+          ? new Date(row.fecha_creacion).getTime()
+          : (row.fecha_solicitud
+            ? new Date(row.fecha_solicitud).getTime()
+            : Date.now())
       };
     });
-    
+
     return NextResponse.json(requisitions);
   } catch (error) {
-    console.error('Error al obtener las requisiciones:', error);
+    console.error('❌ Error al obtener requisiciones:', error);
     return NextResponse.json(
       { error: 'Error al obtener las requisiciones' },
       { status: 500 }

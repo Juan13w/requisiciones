@@ -20,7 +20,7 @@ export default function LoginPage() {
     } else if (userData.rol === 'coordinador') {
       router.push('/coordinador')
     } else if (userData.rol === 'compras') {
-      router.push('/compras')
+      router.push('/dashboard-compras')
     } else {
       router.push('/')
     }

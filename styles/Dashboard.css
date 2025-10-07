@@ -1,7 +1,7 @@
 .dashboard {
   min-height: 100vh;
   /* Enhanced background with modern gradient */
-  background: linear-gradient(135deg, #000000 0%, #000000 100%);
+  background: #000000;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -104,6 +104,7 @@
   margin: 0 auto;
   /* Increased padding for better spacing */
   padding: 2.5rem 1.5rem;
+  background-color: #000000;
 }
 
 /* Enhanced welcome section with card-like appearance */
@@ -596,9 +597,10 @@
 
 /* Stat Card */
 .stat-card {
-  background-color: #ffffff;
+  background-color: #000000;
   padding: 1.5rem;
-  border-radius: 1rem;
+  border: 1px solid #BFA181;
+  border-radius: 1rem; 
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
@@ -618,12 +620,12 @@
 .stat-card-header h3 {
   font-size: 1rem;
   font-weight: 600;
-  color: #475569;
+  color: #ffffff;
   margin: 0;
 }
 
 .stat-card-header svg {
-  color: #94a3b8;
+  color: #ffffff;
 }
 
 .stat-card-body .stat-number {
@@ -636,7 +638,7 @@
 
 .stat-card-body p {
   font-size: 0.875rem;
-  color: #64748b;
+  color: #ffffff;
   margin: 0;
 }
 

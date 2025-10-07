@@ -376,7 +376,7 @@ const Dashboard = () => {
         ) : (
           <>
             <div className="dashboard-header">
-              <h1>Dashboard - RRHH</h1>
+              <h1>Dashboard de coordinador</h1>
               <p>Gestiona tus requisiciones y solicitudes al departamento de compras</p>
             </div>
 
